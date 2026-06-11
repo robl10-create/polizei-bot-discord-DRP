@@ -211,13 +211,18 @@ class PersonalCog(commands.Cog):
     # ==========================================
 
     @app_commands.command(name="mv", description="Stellt eine Mündliche Dienstverwarnung aus.")
+    @app_commands.choices(beweis=[
+        app_commands.Choice(name="🎥 Clip", value="Clip (Videobeweis)"),
+        app_commands.Choice(name="📸 Screenshot", value="Screenshot (Bildbeweis)"),
+        app_commands.Choice(name="📂 Zeugenaussage / Dienstbericht", value="Zeugenaussage / Interner Dienstbericht")
+    ])
     @app_commands.checks.has_permissions(manage_roles=True)
     async def muendliche_verwarnung(
         self, 
         interaction: discord.Interaction, 
         mitarbeiter: discord.Member, 
+        beweis: app_commands.Choice[str],
         grund: str, 
-        beweis: str = "Siehe Personen Akte (Screenshot)", 
         anmerkung: str = "Bei Fragen oder Anliegen öffnen sie bitte ein Dienstaufsicht-Ticket.",
         mitunterschrift_1: discord.Member = None,
         mitunterschrift_2: discord.Member = None
@@ -227,14 +232,13 @@ class PersonalCog(commands.Cog):
         embed = discord.Embed(title="⚠️ DISZIPLINARMASSNAHME | MÜNDLICHE VERWARNUNG", color=discord.Color.from_rgb(230, 126, 34))
         embed.set_author(name="Dienstliche Bekanntmachung • Disziplinarbeschluss", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
         
-        # Formatierter Hauptinhalt basierend auf der verlangten Struktur
         inhalt = (
             f"📋 **Stammdaten des Beamten**\n"
             f"• **Name:** {mitarbeiter.mention}\n\n"
             f"📢 **Sanktionsstatus**\n"
             f"• Hiermit erhält der Beamte eine **Mündliche Dienstverwarnung**.\n\n"
             f"🔍 **Beweisführung**\n"
-            f"• {beweis}\n\n"
+            f"• {beweis.value}\n\n"
             f"📜 **Disziplinarischer Grund**\n"
             f"*{grund}*\n\n"
             f"💡 **Anmerkung**\n"
@@ -243,7 +247,6 @@ class PersonalCog(commands.Cog):
         )
         embed.add_field(name="​", value=inhalt, inline=False)
         
-        # Unterschriftenblock
         unterschriften = f"{interaction.user.mention}\n*Disziplinarausschuss PPD*"
         if mitunterschrift_1:
             unterschriften += f"\n{mitunterschrift_1.mention}"
@@ -259,13 +262,18 @@ class PersonalCog(commands.Cog):
         await interaction.followup.send(embed=embed)
 
     @app_commands.command(name="sv", description="Stellt eine Schriftliche Dienstverwarnung aus.")
+    @app_commands.choices(beweis=[
+        app_commands.Choice(name="🎥 Clip", value="Clip (Videobeweis)"),
+        app_commands.Choice(name="📸 Screenshot", value="Screenshot (Bildbeweis)"),
+        app_commands.Choice(name="📂 Zeugenaussage / Dienstbericht", value="Zeugenaussage / Interner Dienstbericht")
+    ])
     @app_commands.checks.has_permissions(manage_roles=True)
     async def schriftliche_verwarnung(
         self, 
         interaction: discord.Interaction, 
         mitarbeiter: discord.Member, 
+        beweis: app_commands.Choice[str],
         grund: str, 
-        beweis: str = "Siehe Personen Akte (Screenshot)", 
         anmerkung: str = "Ich hoffe sie unterlassen das in Zukunft. Bei Fragen öffnen sie einen SG23 Ticket oder wenden sie sich an die Ausstellenden Personen.",
         mitunterschrift_1: discord.Member = None,
         mitunterschrift_2: discord.Member = None
@@ -281,7 +289,7 @@ class PersonalCog(commands.Cog):
             f"📢 **Sanktionsstatus**\n"
             f"• Hiermit erhält der Beamte eine **Schriftliche Dienstverwarnung**.\n\n"
             f"🔍 **Beweisführung**\n"
-            f"• {beweis}\n\n"
+            f"• {beweis.value}\n\n"
             f"📜 **Disziplinarischer Grund**\n"
             f"*{grund}*\n\n"
             f"💡 **Anmerkung**\n"
@@ -305,12 +313,13 @@ class PersonalCog(commands.Cog):
         await interaction.followup.send(embed=embed)
 
     @app_commands.command(name="su", description="Stellt eine dienstliche Suspendierung aus.")
+    @app_commands.describe(dauer_in_tagen="Die Dauer der Suspendierung (z.B. 3 oder 7)")
     @app_commands.checks.has_permissions(manage_roles=True)
     async def suspendierung(
         self, 
         interaction: discord.Interaction, 
         mitarbeiter: discord.Member, 
-        dauer: str,
+        dauer_in_tagen: int,
         grund: str, 
         anmerkung: str = "Bei Fragen oder Anliegen, öffnen sie bitte ein Dienstaufsicht-Ticket.",
         mitunterschrift_1: discord.Member = None,
@@ -327,7 +336,7 @@ class PersonalCog(commands.Cog):
             f"📢 **Sanktionsstatus**\n"
             f"• Hiermit erhält der Beamte eine temporäre **Suspendierung vom Dienst**.\n\n"
             f"⏳ **Dauer der Maßnahme**\n"
-            f"• `{dauer}`\n\n"
+            f"• `{dauer_in_tagen} Tage`\n\n"
             f"📜 **Disziplinarischer Grund**\n"
             f"*{grund}*\n\n"
             f"💡 **Anmerkung**\n"
