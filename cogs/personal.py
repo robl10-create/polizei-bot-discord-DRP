@@ -113,7 +113,6 @@ class WeeklyInsiderSetupView(discord.ui.View):
         
         status_log = []
 
-        # 1. Gehobener Dienst verarbeiten
         if self.gehobener_dienst:
             text += "**Gehobener Polizeivollzugsdienst**\n"
             for member, old_r, new_r in self.gehobener_dienst:
@@ -135,7 +134,6 @@ class WeeklyInsiderSetupView(discord.ui.View):
 
             text += "\n"
             
-        # 2. Mittlerer Dienst verarbeiten
         if self.mittlerer_dienst:
             text += "**Mittlerer Polizeivollzugsdienst:**\n"
             for member, old_r, new_r in self.mittlerer_dienst:
@@ -157,7 +155,6 @@ class WeeklyInsiderSetupView(discord.ui.View):
 
             text += "\n"
             
-        # 3. Verwarnungen hinzufügen
         if self.verwarnungen:
             text += "**Verwarnungen:**\n*(Dienstzeit nicht erfüllt)*\n"
             for member in self.verwarnungen:
@@ -170,10 +167,8 @@ class WeeklyInsiderSetupView(discord.ui.View):
         lc.save_data()
         await lc.update_list_channel(guild)
         
-        # Öffentlich in den Kanal senden
         await interaction.channel.send(content=text)
         
-        # Editieren statt Löschen der ephemeren Nachricht
         final_info = "✅ **Die wöchentliche Liste wurde erfolgreich gepostet und die Server-Rollen wurden aktualisiert!**"
         if status_log:
             error_msg = "\n".join(status_log)
@@ -212,7 +207,7 @@ class PersonalCog(commands.Cog):
         return self.bot.get_cog("ListenCog")
 
     # ==========================================
-    # SANCTION COMMANDS (SANKTIONEN)
+    # SANKTIONSBEFEHLE IM STIL VON IMAGE_CD0D17.PNG
     # ==========================================
 
     @app_commands.command(name="mv", description="Stellt eine Mündliche Dienstverwarnung aus.")
@@ -229,23 +224,38 @@ class PersonalCog(commands.Cog):
     ):
         await interaction.response.defer()
         
-        embed = discord.Embed(title="Sanktion 🇩🇪", color=discord.Color.from_rgb(230, 126, 34))
-        embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url)
+        embed = discord.Embed(title="⚠️ DISZIPLINARMASSNAHME | MÜNDLICHE VERWARNUNG", color=discord.Color.from_rgb(230, 126, 34))
+        embed.set_author(name="Dienstliche Bekanntmachung • Disziplinarbeschluss", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
         
-        # Hauptinhalt nach Bild-Vorlage
-        content = (
-            f"**Hiermit erhält {mitarbeiter.mention} eine Mündliche Dienstverwarnung.**\n\n"
-            f"**Beweis:** {beweis}\n\n"
-            f"**Grund:** {grund}\n\n"
-            f"**Anmerkung:** {anmerkung}\n\n"
-            f"**Unterschrift:**\n{interaction.user.mention}"
+        # Formatierter Hauptinhalt basierend auf der verlangten Struktur
+        inhalt = (
+            f"📋 **Stammdaten des Beamten**\n"
+            f"• **Name:** {mitarbeiter.mention}\n\n"
+            f"📢 **Sanktionsstatus**\n"
+            f"• Hiermit erhält der Beamte eine **Mündliche Dienstverwarnung**.\n\n"
+            f"🔍 **Beweisführung**\n"
+            f"• {beweis}\n\n"
+            f"📜 **Disziplinarischer Grund**\n"
+            f"*{grund}*\n\n"
+            f"💡 **Anmerkung**\n"
+            f"*{anmerkung}*\n\n"
+            f"▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"
         )
+        embed.add_field(name="​", value=inhalt, inline=False)
+        
+        # Unterschriftenblock
+        unterschriften = f"{interaction.user.mention}\n*Disziplinarausschuss PPD*"
         if mitunterschrift_1:
-            content += f"\n{mitunterschrift_1.mention}"
+            unterschriften += f"\n{mitunterschrift_1.mention}"
         if mitunterschrift_2:
-            content += f"\n{mitunterschrift_2.mention}"
+            unterschriften += f"\n{mitunterschrift_2.mention}"
             
-        embed.description = content
+        embed.add_field(name="🖋️ Autorisierte Unterschrift", value=unterschriften, inline=True)
+        embed.add_field(name="📅 Ausstellungsdatum", value=f"`{interaction.created_at.strftime('%d.%m.%Y - %H:%M')} Uhr`", inline=True)
+        
+        embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
+        embed.set_footer(text="🇩🇪 Geprüftes Dokument • PPD Bundeskartei", icon_url=self.bot.user.display_avatar.url)
+        
         await interaction.followup.send(embed=embed)
 
     @app_commands.command(name="sv", description="Stellt eine Schriftliche Dienstverwarnung aus.")
@@ -262,23 +272,36 @@ class PersonalCog(commands.Cog):
     ):
         await interaction.response.defer()
         
-        embed = discord.Embed(title="Sanktion 🇩🇪", color=discord.Color.from_rgb(192, 41, 43))
-        embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url)
+        embed = discord.Embed(title="⚠️ DISZIPLINARMASSNAHME | SCHRIFTLICHE VERWARNUNG", color=discord.Color.from_rgb(192, 41, 43))
+        embed.set_author(name="Dienstliche Bekanntmachung • Disziplinarbeschluss", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
         
-        # Hauptinhalt nach Bild-Vorlage
-        content = (
-            f"**Hiermit erhält {mitarbeiter.mention} eine Schriftliche Dienstverwarnung.**\n\n"
-            f"**Beweis:** {beweis}\n\n"
-            f"**Grund:** {grund}\n\n"
-            f"**Anmerkung:** {anmerkung}\n\n"
-            f"**Unterschrift:**\n{interaction.user.mention}"
+        inhalt = (
+            f"📋 **Stammdaten des Beamten**\n"
+            f"• **Name:** {mitarbeiter.mention}\n\n"
+            f"📢 **Sanktionsstatus**\n"
+            f"• Hiermit erhält der Beamte eine **Schriftliche Dienstverwarnung**.\n\n"
+            f"🔍 **Beweisführung**\n"
+            f"• {beweis}\n\n"
+            f"📜 **Disziplinarischer Grund**\n"
+            f"*{grund}*\n\n"
+            f"💡 **Anmerkung**\n"
+            f"*{anmerkung}*\n\n"
+            f"▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"
         )
+        embed.add_field(name="​", value=inhalt, inline=False)
+        
+        unterschriften = f"{interaction.user.mention}\n*Disziplinarausschuss PPD*"
         if mitunterschrift_1:
-            content += f"\n{mitunterschrift_1.mention}"
+            unterschriften += f"\n{mitunterschrift_1.mention}"
         if mitunterschrift_2:
-            content += f"\n{mitunterschrift_2.mention}"
+            unterschriften += f"\n{mitunterschrift_2.mention}"
             
-        embed.description = content
+        embed.add_field(name="🖋️ Autorisierte Unterschrift", value=unterschriften, inline=True)
+        embed.add_field(name="📅 Ausstellungsdatum", value=f"`{interaction.created_at.strftime('%d.%m.%Y - %H:%M')} Uhr`", inline=True)
+        
+        embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
+        embed.set_footer(text="🇩🇪 Geprüftes Dokument • PPD Bundeskartei", icon_url=self.bot.user.display_avatar.url)
+        
         await interaction.followup.send(embed=embed)
 
     @app_commands.command(name="su", description="Stellt eine dienstliche Suspendierung aus.")
@@ -295,23 +318,36 @@ class PersonalCog(commands.Cog):
     ):
         await interaction.response.defer()
         
-        embed = discord.Embed(title="Suspendierung", color=discord.Color.from_rgb(44, 62, 80))
-        embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url)
+        embed = discord.Embed(title="🚨 DISZIPLINARMASSNAHME | SUSPENDIERUNG", color=discord.Color.from_rgb(44, 62, 80))
+        embed.set_author(name="Dienstliche Bekanntmachung • Disziplinarbeschluss", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
         
-        # Hauptinhalt nach Bild-Vorlage mit Dauer-Zusatz
-        content = (
-            f'**Hiermit Erhält "{mitarbeiter.display_name}" eine Suspendierung**\n\n'
-            f"**Grund:** {grund}\n\n"
-            f"**Dauer:** {dauer}\n\n"
-            f"**Anmerkung:** {anmerkung}\n\n"
-            f"**Unterschrift:**\n{interaction.user.mention}"
+        inhalt = (
+            f"📋 **Stammdaten des Beamten**\n"
+            f"• **Name:** {mitarbeiter.mention}\n\n"
+            f"📢 **Sanktionsstatus**\n"
+            f"• Hiermit erhält der Beamte eine temporäre **Suspendierung vom Dienst**.\n\n"
+            f"⏳ **Dauer der Maßnahme**\n"
+            f"• `{dauer}`\n\n"
+            f"📜 **Disziplinarischer Grund**\n"
+            f"*{grund}*\n\n"
+            f"💡 **Anmerkung**\n"
+            f"*{anmerkung}*\n\n"
+            f"▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬"
         )
+        embed.add_field(name="​", value=inhalt, inline=False)
+        
+        unterschriften = f"{interaction.user.mention}\n*Behördenleitung / Direktion*"
         if mitunterschrift_1:
-            content += f"\n{mitunterschrift_1.mention}"
+            unterschriften += f"\n{mitunterschrift_1.mention}"
         if mitunterschrift_2:
-            content += f"\n{mitunterschrift_2.mention}"
+            unterschriften += f"\n{mitunterschrift_2.mention}"
             
-        embed.description = content
+        embed.add_field(name="🖋️ Autorisierte Unterschrift", value=unterschriften, inline=True)
+        embed.add_field(name="📅 Ausstellungsdatum", value=f"`{interaction.created_at.strftime('%d.%m.%Y - %H:%M')} Uhr`", inline=True)
+        
+        embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
+        embed.set_footer(text="🇩🇪 Geprüftes Dokument • PPD Bundeskartei", icon_url=self.bot.user.display_avatar.url)
+        
         await interaction.followup.send(embed=embed)
 
     # ==========================================
@@ -367,7 +403,7 @@ class PersonalCog(commands.Cog):
         embed.add_field(name="🖋️ Autorisierte Unterschrift", value=f"{interaction.user.mention}\n*Personalabteilung PPD*", inline=True)
         embed.add_field(name="📅 Ausstellungsdatum", value=f"`{interaction.created_at.strftime('%d.%m.%Y - %H:%M')} Uhr`", inline=True)
         embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
-        embed.set_footer(text="Geprüftes Dokument • PPD Bundeskartei", icon_url=self.bot.user.display_avatar.url)
+        embed.set_footer(text="🇩🇪 Geprüftes Dokument • PPD Bundeskartei", icon_url=self.bot.user.display_avatar.url)
         
         await interaction.followup.send(embed=embed)
         await lc.update_list_channel(interaction.guild)
@@ -418,7 +454,7 @@ class PersonalCog(commands.Cog):
             embed.add_field(name="🖋️ Autorisierte Unterschrift", value=f"{interaction.user.mention}\n*Disziplinarausschuss PPD*", inline=True)
             embed.add_field(name="📅 Ausstellungsdatum", value=f"`{interaction.created_at.strftime('%d.%m.%Y - %H:%M')} Uhr`", inline=True)
             embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
-            embed.set_footer(text="Geprüftes Dokument • PPD Bundeskartei", icon_url=self.bot.user.display_avatar.url)
+            embed.set_footer(text="🇩🇪 Geprüftes Dokument • PPD Bundeskartei", icon_url=self.bot.user.display_avatar.url)
             
             await interaction.followup.send(embed=embed)
             await lc.update_list_channel(interaction.guild)
