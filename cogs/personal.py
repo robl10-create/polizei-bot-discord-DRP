@@ -164,7 +164,7 @@ class WeeklyInsiderSetupView(discord.ui.View):
                 text += f"{member.mention}\n"
             text += "\n"
             
-        text += "Bei Fragen ein Ticket öffnen\n# 🎫 | kontakt-aufnehmen\n\n"
+        text += "Bei Fragen ein Behördenleitung-Ticket öffnen\n# 🎫 | kontakt-aufnehmen\n\n"
         text += f"Unterschrift\n{interaction.user.mention} | ☀️"
         
         lc.save_data()
@@ -173,7 +173,7 @@ class WeeklyInsiderSetupView(discord.ui.View):
         # Öffentlich in den Kanal senden
         await interaction.channel.send(content=text)
         
-        # Fix für den Fehler aus image_3649fe.png: Editieren statt Löschen der ephemeren Nachricht
+        # Editieren statt Löschen der ephemeren Nachricht
         final_info = "✅ **Die wöchentliche Liste wurde erfolgreich gepostet und die Server-Rollen wurden aktualisiert!**"
         if status_log:
             error_msg = "\n".join(status_log)
@@ -210,6 +210,113 @@ class PersonalCog(commands.Cog):
 
     def get_listen_cog(self) -> ListenCog:
         return self.bot.get_cog("ListenCog")
+
+    # ==========================================
+    # SANCTION COMMANDS (SANKTIONEN)
+    # ==========================================
+
+    @app_commands.command(name="mv", description="Stellt eine Mündliche Dienstverwarnung aus.")
+    @app_commands.checks.has_permissions(manage_roles=True)
+    async def muendliche_verwarnung(
+        self, 
+        interaction: discord.Interaction, 
+        mitarbeiter: discord.Member, 
+        grund: str, 
+        beweis: str = "Siehe Personen Akte (Screenshot)", 
+        anmerkung: str = "Bei Fragen oder Anliegen öffnen sie bitte ein Dienstaufsicht-Ticket.",
+        mitunterschrift_1: discord.Member = None,
+        mitunterschrift_2: discord.Member = None
+    ):
+        await interaction.response.defer()
+        
+        embed = discord.Embed(title="Sanktion 🇩🇪", color=discord.Color.from_rgb(230, 126, 34))
+        embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url)
+        
+        # Hauptinhalt nach Bild-Vorlage
+        content = (
+            f"**Hiermit erhält {mitarbeiter.mention} eine Mündliche Dienstverwarnung.**\n\n"
+            f"**Beweis:** {beweis}\n\n"
+            f"**Grund:** {grund}\n\n"
+            f"**Anmerkung:** {anmerkung}\n\n"
+            f"**Unterschrift:**\n{interaction.user.mention}"
+        )
+        if mitunterschrift_1:
+            content += f"\n{mitunterschrift_1.mention}"
+        if mitunterschrift_2:
+            content += f"\n{mitunterschrift_2.mention}"
+            
+        embed.description = content
+        await interaction.followup.send(embed=embed)
+
+    @app_commands.command(name="sv", description="Stellt eine Schriftliche Dienstverwarnung aus.")
+    @app_commands.checks.has_permissions(manage_roles=True)
+    async def schriftliche_verwarnung(
+        self, 
+        interaction: discord.Interaction, 
+        mitarbeiter: discord.Member, 
+        grund: str, 
+        beweis: str = "Siehe Personen Akte (Screenshot)", 
+        anmerkung: str = "Ich hoffe sie unterlassen das in Zukunft. Bei Fragen öffnen sie einen SG23 Ticket oder wenden sie sich an die Ausstellenden Personen.",
+        mitunterschrift_1: discord.Member = None,
+        mitunterschrift_2: discord.Member = None
+    ):
+        await interaction.response.defer()
+        
+        embed = discord.Embed(title="Sanktion 🇩🇪", color=discord.Color.from_rgb(192, 41, 43))
+        embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url)
+        
+        # Hauptinhalt nach Bild-Vorlage
+        content = (
+            f"**Hiermit erhält {mitarbeiter.mention} eine Schriftliche Dienstverwarnung.**\n\n"
+            f"**Beweis:** {beweis}\n\n"
+            f"**Grund:** {grund}\n\n"
+            f"**Anmerkung:** {anmerkung}\n\n"
+            f"**Unterschrift:**\n{interaction.user.mention}"
+        )
+        if mitunterschrift_1:
+            content += f"\n{mitunterschrift_1.mention}"
+        if mitunterschrift_2:
+            content += f"\n{mitunterschrift_2.mention}"
+            
+        embed.description = content
+        await interaction.followup.send(embed=embed)
+
+    @app_commands.command(name="su", description="Stellt eine dienstliche Suspendierung aus.")
+    @app_commands.checks.has_permissions(manage_roles=True)
+    async def suspendierung(
+        self, 
+        interaction: discord.Interaction, 
+        mitarbeiter: discord.Member, 
+        dauer: str,
+        grund: str, 
+        anmerkung: str = "Bei Fragen oder Anliegen, öffnen sie bitte ein Dienstaufsicht-Ticket.",
+        mitunterschrift_1: discord.Member = None,
+        mitunterschrift_2: discord.Member = None
+    ):
+        await interaction.response.defer()
+        
+        embed = discord.Embed(title="Suspendierung", color=discord.Color.from_rgb(44, 62, 80))
+        embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url)
+        
+        # Hauptinhalt nach Bild-Vorlage mit Dauer-Zusatz
+        content = (
+            f'**Hiermit Erhält "{mitarbeiter.display_name}" eine Suspendierung**\n\n'
+            f"**Grund:** {grund}\n\n"
+            f"**Dauer:** {dauer}\n\n"
+            f"**Anmerkung:** {anmerkung}\n\n"
+            f"**Unterschrift:**\n{interaction.user.mention}"
+        )
+        if mitunterschrift_1:
+            content += f"\n{mitunterschrift_1.mention}"
+        if mitunterschrift_2:
+            content += f"\n{mitunterschrift_2.mention}"
+            
+        embed.description = content
+        await interaction.followup.send(embed=embed)
+
+    # ==========================================
+    # CORE MANAGEMENT COMMANDS (BESTEHEND)
+    # ==========================================
 
     @app_commands.command(name="beförderung", description="Befördere einen Mitarbeiter und passe seine Rollen automatisch an.")
     @app_commands.choices(ebene=[
