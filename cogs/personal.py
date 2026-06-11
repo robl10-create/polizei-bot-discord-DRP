@@ -196,7 +196,7 @@ class WeeklyInsiderSetupView(discord.ui.View):
 
 
 # ==========================================
-# HAUPT COG
+# HAUPT COG WITH ANTI-SPAM PROTECTION
 # ==========================================
 
 class PersonalCog(commands.Cog):
@@ -205,6 +205,18 @@ class PersonalCog(commands.Cog):
 
     def get_listen_cog(self) -> ListenCog:
         return self.bot.get_cog("ListenCog")
+
+    # Zentraler Fehler-Abfänger für Cooldowns (Anti-Spam)
+    @commands.Cog.listener()
+    async def on_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        if isinstance(error, app_commands.CommandOnCooldown):
+            await interaction.response.send_message(
+                f"🚨 **Anti-Spam Schutz aktiv!** Bitte warte `{error.retry_after:.1f}` Sekunden, bevor du diesen Befehl erneut nutzt.", 
+                ephemeral=True
+            )
+        else:
+            # Falls andere Fehler auftreten, optional loggen oder ignorieren
+            pass
 
     # ==========================================
     # SANKTIONSBEFEHLE IM STIL VON IMAGE_CD0D17.PNG
@@ -217,6 +229,7 @@ class PersonalCog(commands.Cog):
         app_commands.Choice(name="📂 Zeugenaussage / Dienstbericht", value="Zeugenaussage / Interner Dienstbericht")
     ])
     @app_commands.checks.has_permissions(manage_roles=True)
+    @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id) # Maximal 1-mal alle 10 Sekunden pro Nutzer
     async def muendliche_verwarnung(
         self, 
         interaction: discord.Interaction, 
@@ -268,6 +281,7 @@ class PersonalCog(commands.Cog):
         app_commands.Choice(name="📂 Zeugenaussage / Dienstbericht", value="Zeugenaussage / Interner Dienstbericht")
     ])
     @app_commands.checks.has_permissions(manage_roles=True)
+    @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
     async def schriftliche_verwarnung(
         self, 
         interaction: discord.Interaction, 
@@ -315,6 +329,7 @@ class PersonalCog(commands.Cog):
     @app_commands.command(name="su", description="Stellt eine dienstliche Suspendierung aus.")
     @app_commands.describe(dauer_in_tagen="Die Dauer der Suspendierung (z.B. 3 oder 7)")
     @app_commands.checks.has_permissions(manage_roles=True)
+    @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
     async def suspendierung(
         self, 
         interaction: discord.Interaction, 
@@ -371,6 +386,7 @@ class PersonalCog(commands.Cog):
         app_commands.Choice(name="💼 Behördenleitung (BHL)", value="BHL")
     ])
     @app_commands.checks.has_permissions(manage_roles=True)
+    @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
     async def befoerderung(
         self, 
         interaction: discord.Interaction, 
@@ -425,6 +441,7 @@ class PersonalCog(commands.Cog):
         app_commands.Choice(name="💼 Behördenleitung (BHL)", value="BHL")
     ])
     @app_commands.checks.has_permissions(manage_roles=True)
+    @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
     async def degradierung(
         self, 
         interaction: discord.Interaction, 
@@ -472,6 +489,7 @@ class PersonalCog(commands.Cog):
 
     @app_commands.command(name="kündigung", description="Entlasse einen Mitarbeiter und entziehe ihm seine Dienstrolle.")
     @app_commands.checks.has_permissions(manage_roles=True)
+    @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
     async def kuendigung(self, interaction: discord.Interaction, mitarbeiter: discord.Member, letzter_rang: discord.Role, grund: str):
         await interaction.response.defer()
         lc = self.get_listen_cog()
@@ -507,6 +525,7 @@ class PersonalCog(commands.Cog):
 
     @app_commands.command(name="abteilungs-betritt", description="Füge einen Mitarbeiter einer Sonderabteilung hinzu.")
     @app_commands.checks.has_permissions(manage_roles=True)
+    @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
     async def abt_betritt(self, interaction: discord.Interaction, mitarbeiter: discord.Member, abteilung: str, grund: str = "Zulassungsverfahren bestanden"):
         lc = self.get_listen_cog()
         user_id = str(mitarbeiter.id)
@@ -532,6 +551,7 @@ class PersonalCog(commands.Cog):
 
     @app_commands.command(name="abteilungs-austritt", description="Entferne einen Mitarbeiter aus einer Abteilung.")
     @app_commands.checks.has_permissions(manage_roles=True)
+    @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
     async def abt_austritt(self, interaction: discord.Interaction, mitarbeiter: discord.Member, grund: str = "Freiwillige Niederlegung / Rotation"):
         lc = self.get_listen_cog()
         user_id = str(mitarbeiter.id)
@@ -558,6 +578,7 @@ class PersonalCog(commands.Cog):
 
     @app_commands.command(name="weekly-insider", description="Erstellt die wöchentlichen Upranks über interaktive Auswahlmenüs.")
     @app_commands.checks.has_permissions(manage_roles=True)
+    @app_commands.checks.cooldown(1, 60.0, key=lambda i: i.user.id) # Größerer Schutz für das aufwendige Listen-Posting (1 Minute Cooldown)
     async def weekly_insider(self, interaction: discord.Interaction):
         view = WeeklyInsiderSetupView(interaction.user, self)
         await interaction.response.send_message(
