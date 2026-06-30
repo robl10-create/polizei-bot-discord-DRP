@@ -115,7 +115,7 @@ class WeeklyInsiderSetupView(discord.ui.View):
         status_log = []
 
         if self.gehobener_dienst:
-            text += "**Gehobener Polizeivollzugsdienst**\n"
+            text += "**Gehobener Dienst**\n"
             for member, old_r, new_r in self.gehobener_dienst:
                 text += f"{member.mention} ➔ {old_r} ➔ {new_r}\n"
                 
@@ -136,7 +136,7 @@ class WeeklyInsiderSetupView(discord.ui.View):
             text += "\n"
             
         if self.mittlerer_dienst:
-            text += "**Mittlerer Polizeivollzugsdienst:**\n"
+            text += "**Mittlerer Dienst:**\n"
             for member, old_r, new_r in self.mittlerer_dienst:
                 text += f"{member.mention} ➔ {old_r} ➔ {new_r}\n"
                 
@@ -197,7 +197,7 @@ class WeeklyInsiderSetupView(discord.ui.View):
 
 
 # ==========================================
-# HAUPT COG MIT ANTI-SPAM & ERST-IMPORT
+# HAUPT COG MIT ANTI-SPAM & ERST-IMPORT (IDS)
 # ==========================================
 
 class PersonalCog(commands.Cog):
@@ -219,7 +219,7 @@ class PersonalCog(commands.Cog):
     # AUTOMATISCHER ERST-IMPORT & NUMMERIERUNG
     # ==========================================
 
-    @app_commands.command(name="personal-sync", description="Importiert alle bestehenden Beamten anhand ihrer Rollen und nummeriert sie von oben nach unten.")
+    @app_commands.command(name="personal-sync", description="Importiert alle bestehenden Beamten anhand ihrer Rollen-IDs und nummeriert sie von oben nach unten.")
     @app_commands.checks.has_permissions(manage_roles=True)
     @app_commands.checks.cooldown(1, 30.0, key=lambda i: i.guild_id)
     async def personal_sync(self, interaction: discord.Interaction):
@@ -228,49 +228,63 @@ class PersonalCog(commands.Cog):
         guild = interaction.guild
         lc = self.get_listen_cog()
         
-        # Rang-Reihenfolge definieren (Wichtig für die Sortierung von oben nach unten)
-        rang_ordnung = {
-            "BHL": 1,
-            "HD": 2,
-            "G6": 3, "G5": 4, "G4": 5, "G3": 6, "G2": 7, "G1": 8,
-            "M5": 9, "M4": 10, "M3": 11, "M2": 12, "M1": 13
+        # Mapping aller Rollen-IDs mit Priorität (1 = ganz oben, niedriger = weiter unten) und Zuweisungs-Kürzel
+        rang_daten = {
+            1453861118563979361: {"prio": 1,  "kuerzel": "B5", "ebene": "BHL"}, # B5 » [Landespolizeipräsident]
+            1447903859744706703: {"prio": 2,  "kuerzel": "B4", "ebene": "BHL"}, # B4 » [Polizeipräsident/in]
+            1447903828677496993: {"prio": 3,  "kuerzel": "B3", "ebene": "BHL"}, # B3 » [Polizeivizepräsident/in]
+            1447903769151930388: {"prio": 4,  "kuerzel": "B2", "ebene": "BHL"}, # B2 » [Erster Direktor/in beim Polizeipräsidenten]
+            1447903489018695732: {"prio": 5,  "kuerzel": "B1", "ebene": "BHL"}, # B1 » [Direktor/in beim Polizeipräsident]
+            
+            1434216338800382008: {"prio": 6,  "kuerzel": "H5", "ebene": "HD"},  # H5 » [Leitender Polizeidirektor/in]
+            1434216338800382005: {"prio": 7,  "kuerzel": "H4", "ebene": "HD"},  # H4 » [Polizeidirektor/in]
+            1434216338800382004: {"prio": 8,  "kuerzel": "H3", "ebene": "HD"},  # H3 » [Polizeioberrat/in]
+            1434216338775081030: {"prio": 9,  "kuerzel": "H2", "ebene": "HD"},  # H2 » [Polizeirat/in]
+            1434216338775081029: {"prio": 10, "kuerzel": "H1", "ebene": "HD"},  # H1 » [Polizeiratsanwärter/in]
+            
+            1434216338775081025: {"prio": 11, "kuerzel": "G6", "ebene": "GD"},  # G6 » [Erster Polizeihauptkommissar/in]
+            1434216338775081024: {"prio": 12, "kuerzel": "G5", "ebene": "GD"},  # G5 » [Polizeihauptkommissar mit Zulage/in]
+            1434216338775081023: {"prio": 13, "kuerzel": "G4", "ebene": "GD"},  # G4 » [Polizeihauptkommissar/in]
+            1434216338775081022: {"prio": 14, "kuerzel": "G3", "ebene": "GD"},  # G3 » [Polizeioberkommissar/in]
+            1434216338775081021: {"prio": 15, "kuerzel": "G2", "ebene": "GD"},  # G2 » [Polizeikommissar/in]
+            1434216338762764369: {"prio": 16, "kuerzel": "G1", "ebene": "GD"},  # G1 » [Polizeikommissar Anwärter/in]
+            
+            1434216338762764365: {"prio": 17, "kuerzel": "M5", "ebene": "MD"},  # M5 » [Polizeihauptmeister/in mit Zulage]
+            1434216338762764364: {"prio": 18, "kuerzel": "M4", "ebene": "MD"},  # M4 » [Polizeihauptmeister/in]
+            1434216338762764363: {"prio": 19, "kuerzel": "M3", "ebene": "MD"},  # M3 » [Polizeiobermeister/in]
+            1434216338762764362: {"prio": 20, "kuerzel": "M2", "ebene": "MD"},  # M2 » [Polizeimeister/in]
+            1434216338762764360: {"prio": 21, "kuerzel": "M1", "ebene": "MD"}   # M1 » [Polizeimeister Anwärter/in]
         }
         
         beamten_liste = []
 
-        # 1. Schritt: Alle Mitglieder scannen und relevante Beamte sammeln
+        # 1. Schritt: Alle Mitglieder des Servers durchgehen
         async for member in guild.fetch_members(limit=None):
             if member.bot:
                 continue
                 
-            hoechster_rang = None
-            prioritaet = 999
-            ebene = None
+            hoechste_prio = 999
+            gefundener_rang = None
             
-            # Prüfen, welche der definierten Rollen das Mitglied hat
+            # Rollen-IDs abgleichen
             for role in member.roles:
-                if role.name in rang_ordnung:
-                    if rang_ordnung[role.name] < prioritaet:
-                        prioritaet = rang_ordnung[role.name]
-                        hoechster_rang = role.name
+                if role.id in rang_daten:
+                    # Falls jemand mehrere Dienstgrade hat, nimm das mit der höchsten Priorität (kleinste Zahl)
+                    if rang_daten[role.id]["prio"] < hoechste_prio:
+                        hoechste_prio = rang_daten[role.id]["prio"]
+                        gefundener_rang = rang_daten[role.id]
             
-            if hoechster_rang:
-                if hoechster_rang in ["BHL"]: ebene = "BHL"
-                elif hoechster_rang in ["HD"]: ebene = "HD"
-                elif hoechster_rang.startswith("G"): ebene = "GD"
-                elif hoechster_rang.startswith("M"): ebene = "MD"
-                
+            if gefundener_rang:
                 beamten_liste.append({
                     "member": member,
-                    "rang_name": hoechster_rang,
-                    "ebene": ebene,
-                    "prio": prioritaet
+                    "ebene": gefundener_rang["ebene"],
+                    "prio": hoechste_prio
                 })
 
-        # 2. Schritt: Von oben nach unten sortieren (BHL zuerst, dann HD, G6...M1)
+        # 2. Schritt: Von oben nach unten sortieren (B5 -> B4 -> ... -> M1)
         beamten_liste.sort(key=lambda x: x["prio"])
 
-        # 3. Schritt: In die Datenbank eintragen und von 1 an durchnummerieren
+        # 3. Schritt: In die Datenbank eintragen und von 01 an durchnummerieren
         neue_mitarbeiter_counter = 0
         aktueller_index = 1
 
@@ -278,10 +292,10 @@ class PersonalCog(commands.Cog):
             member = data["member"]
             user_id = str(member.id)
             
-            # Generiere eine zweistellige Nummer (z.B. 01, 02, 12)
+            # Generiere eine sauber formatierte zweistellige Nummer (01, 02, etc.)
             dienstnummer_str = f"{aktueller_index:02d}"
             
-            # Eintrag erstellen oder überschreiben (Abteilung bleibt erhalten, falls schon vorhanden)
+            # In die JSON-Struktur einpflegen (Abteilung bleibt unangetastet falls existent)
             lc.daten["mitarbeiter"][user_id] = {
                 "rang": data["ebene"],
                 "nummer": dienstnummer_str,
@@ -292,14 +306,14 @@ class PersonalCog(commands.Cog):
             neue_mitarbeiter_counter += 1
             aktueller_index += 1
 
-        # 4. Schritt: Speichern und die Liste im Discord-Kanal visuell neu aufbauen
+        # 4. Schritt: Datei speichern und Listen-Kanal rendern
         lc.save_data()
         await lc.update_list_channel(guild)
         
         await interaction.followup.send(
-            f"✅ **Erst-Import & Nummerierung erfolgreich!**\n\n"
+            f"✅ **Datenbank-Import über IDs erfolgreich abgeschlossen!**\n\n"
             f"• Insgesamt `{neue_mitarbeiter_counter}` Beamte wurden im System erfasst.\n"
-            f"• Die Dienstnummern wurden von **Rang 1 bis {neue_mitarbeiter_counter}** (von oben nach unten) vergeben.\n\n"
+            f"• Dienstnummern wurden von **Rang 1 (B5) bis {neue_mitarbeiter_counter} (M1)** lückenlos vergeben.\n\n"
             f"Der Dienstnummern-Kanal wurde aktualisiert!", 
             ephemeral=True
         )
