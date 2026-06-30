@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from .listen import ListenCog
+import re
 
 # ==========================================
 # INTERAKTIVE MENÜS FÜR DEN WEEKLY INSIDER
@@ -196,7 +197,7 @@ class WeeklyInsiderSetupView(discord.ui.View):
 
 
 # ==========================================
-# HAUPT COG WITH ANTI-SPAM PROTECTION
+# HAUPT COG WITH ANTI-SPAM & SYNC
 # ==========================================
 
 class PersonalCog(commands.Cog):
@@ -206,7 +207,6 @@ class PersonalCog(commands.Cog):
     def get_listen_cog(self) -> ListenCog:
         return self.bot.get_cog("ListenCog")
 
-    # Zentraler Fehler-Abfänger für Cooldowns (Anti-Spam)
     @commands.Cog.listener()
     async def on_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
         if isinstance(error, app_commands.CommandOnCooldown):
@@ -214,9 +214,95 @@ class PersonalCog(commands.Cog):
                 f"🚨 **Anti-Spam Schutz aktiv!** Bitte warte `{error.retry_after:.1f}` Sekunden, bevor du diesen Befehl erneut nutzt.", 
                 ephemeral=True
             )
-        else:
-            # Falls andere Fehler auftreten, optional loggen oder ignorieren
-            pass
+
+    # ==========================================
+    # NEUER AUTOMATISCHER ROLE-SYNC COMMAND
+    # ==========================================
+
+    @app_commands.command(name="personal-sync", description="Synchronisiert die interne Dienstnummern-Liste automatisch anhand aller Server-Rollen.")
+    @app_commands.checks.has_permissions(manage_roles=True)
+    @app_commands.checks.cooldown(1, 30.0, key=lambda i: i.guild_id) # 30 Sek Cooldown für den gesamten Server, da rechenintensiv
+    async def personal_sync(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        
+        guild = interaction.guild
+        lc = self.get_listen_cog()
+        
+        # Definiere die exakten Rollennamen, nach denen gesucht werden soll
+        md_rollen_namen = ["M1", "M2", "M3", "M4", "M5"]
+        gd_rollen_namen = ["G1", "G2", "G3", "G4", "G5", "G6"]
+        hd_rollen_namen = ["HD"] 
+        bhl_rollen_namen = ["BHL"]
+
+        aktualisiert_counter = 0
+        neue_mitarbeiter_counter = 0
+
+        # Alle Mitglieder des Servers durchlaufen
+        async for member in guild.fetch_members(limit=None):
+            if member.bot:
+                continue
+                
+            ist_beamter = False
+            gefundene_ebene = None
+            
+            # Rollen des Mitglieds überprüfen
+            for role in member.roles:
+                if role.name in md_rollen_namen:
+                    gefundene_ebene = "MD"
+                    ist_beamter = True
+                    break
+                elif role.name in gd_rollen_namen:
+                    gefundene_ebene = "GD"
+                    ist_beamter = True
+                    break
+                elif role.name in hd_rollen_namen:
+                    gefundene_ebene = "HD"
+                    ist_beamter = True
+                    break
+                elif role.name in bhl_rollen_namen:
+                    gefundene_ebene = "BHL"
+                    ist_beamter = True
+                    break
+
+            if ist_beamter:
+                user_id = str(member.id)
+                display_name = member.display_name
+                
+                # Versuche die Dienstnummer aus dem Nicknamen zu filtern (sucht nach Zahlen im Namen)
+                # Findet Zahlen in Mustern wie [MD-14], MD-14, 14 | Name oder [14] Name
+                zahlen_im_namen = re.findall(r'\d+', display_name)
+                dienstnummer = zahlen_im_namen[0] if zahlen_im_namen else "0000"
+
+                # Wenn der Mitarbeiter noch gar nicht in der JSON steht
+                if user_id not in lc.daten["mitarbeiter"]:
+                    lc.daten["mitarbeiter"][user_id] = {
+                        "rang": gefundene_ebene,
+                        "nummer": dienstnummer,
+                        "name": member.name,
+                        "abteilung": None
+                    }
+                    neue_mitarbeiter_counter += 1
+                else:
+                    # Wenn er existiert, aktualisieren wir Rang und Name auf den neuesten Server-Stand
+                    lc.daten["mitarbeiter"][user_id]["rang"] = gefundene_ebene
+                    lc.daten["mitarbeiter"][user_id]["name"] = member.name
+                    # Dienstnummer nur überschreiben, wenn wir eine echte Zahl im Nicknamen gefunden haben
+                    if dienstnummer != "0000":
+                        lc.daten["mitarbeiter"][user_id]["nummer"] = dienstnummer
+                        
+                    aktualisiert_counter += 1
+
+        # Daten speichern und den Text-Kanal der Liste im Discord neu rendern
+        lc.save_data()
+        await lc.update_list_channel(guild)
+        
+        await interaction.followup.send(
+            f"✅ **Datenbank-Synchronisation abgeschlossen!**\n\n"
+            f"• `{neue_mitarbeiter_counter}` neue Beamte im System registriert.\n"
+            f"• `{aktualisiert_counter}` Profile/Rollen auf den aktuellen Stand gebracht.\n\n"
+            f"Der Dienstnummern-Kanal wurde automatisch aktualisiert.", 
+            ephemeral=True
+        )
 
     # ==========================================
     # SANKTIONSBEFEHLE IM STIL VON IMAGE_CD0D17.PNG
@@ -229,7 +315,7 @@ class PersonalCog(commands.Cog):
         app_commands.Choice(name="📂 Zeugenaussage / Dienstbericht", value="Zeugenaussage / Interner Dienstbericht")
     ])
     @app_commands.checks.has_permissions(manage_roles=True)
-    @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id) # Maximal 1-mal alle 10 Sekunden pro Nutzer
+    @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
     async def muendliche_verwarnung(
         self, 
         interaction: discord.Interaction, 
@@ -578,7 +664,7 @@ class PersonalCog(commands.Cog):
 
     @app_commands.command(name="weekly-insider", description="Erstellt die wöchentlichen Upranks über interaktive Auswahlmenüs.")
     @app_commands.checks.has_permissions(manage_roles=True)
-    @app_commands.checks.cooldown(1, 60.0, key=lambda i: i.user.id) # Größerer Schutz für das aufwendige Listen-Posting (1 Minute Cooldown)
+    @app_commands.checks.cooldown(1, 60.0, key=lambda i: i.user.id)
     async def weekly_insider(self, interaction: discord.Interaction):
         view = WeeklyInsiderSetupView(interaction.user, self)
         await interaction.response.send_message(
