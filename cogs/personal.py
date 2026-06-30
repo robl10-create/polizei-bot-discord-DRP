@@ -197,7 +197,7 @@ class WeeklyInsiderSetupView(discord.ui.View):
 
 
 # ==========================================
-# HAUPT COG MIT ANTI-SPAM & ERST-IMPORT (IDS)
+# HAUPT COG MIT ANTI-SPAM & BLITZ-IMPORT
 # ==========================================
 
 class PersonalCog(commands.Cog):
@@ -216,10 +216,10 @@ class PersonalCog(commands.Cog):
             )
 
     # ==========================================
-    # AUTOMATISCHER ERST-IMPORT & NUMMERIERUNG
+    # AUTOMATISCHER BLITZ-IMPORT & NUMMERIERUNG
     # ==========================================
 
-    @app_commands.command(name="personal-sync", description="Importiert alle bestehenden Beamten anhand ihrer Rollen-IDs und nummeriert sie von oben nach unten.")
+    @app_commands.command(name="personal-sync", description="Importiert alle bestehenden Beamten anhand ihrer Rollen-IDs blitzschnell.")
     @app_commands.checks.has_permissions(manage_roles=True)
     @app_commands.checks.cooldown(1, 30.0, key=lambda i: i.guild_id)
     async def personal_sync(self, interaction: discord.Interaction):
@@ -228,7 +228,7 @@ class PersonalCog(commands.Cog):
         guild = interaction.guild
         lc = self.get_listen_cog()
         
-        # Mapping aller Rollen-IDs mit Priorität (1 = ganz oben, niedriger = weiter unten) und Zuweisungs-Kürzel
+        # Mapping aller Rollen-IDs mit Priorität (1 = ganz oben) und Zuweisungs-Kürzel
         rang_daten = {
             1453861118563979361: {"prio": 1,  "kuerzel": "B5", "ebene": "BHL"}, # B5 » [Landespolizeipräsident]
             1447903859744706703: {"prio": 2,  "kuerzel": "B4", "ebene": "BHL"}, # B4 » [Polizeipräsident/in]
@@ -258,18 +258,16 @@ class PersonalCog(commands.Cog):
         
         beamten_liste = []
 
-        # 1. Schritt: Alle Mitglieder des Servers durchgehen
-        async for member in guild.fetch_members(limit=None):
+        # Nutzt guild.members (Cache) für sofortige Rückmeldung
+        for member in guild.members:
             if member.bot:
                 continue
                 
             hoechste_prio = 999
             gefundener_rang = None
             
-            # Rollen-IDs abgleichen
             for role in member.roles:
                 if role.id in rang_daten:
-                    # Falls jemand mehrere Dienstgrade hat, nimm das mit der höchsten Priorität (kleinste Zahl)
                     if rang_daten[role.id]["prio"] < hoechste_prio:
                         hoechste_prio = rang_daten[role.id]["prio"]
                         gefundener_rang = rang_daten[role.id]
@@ -281,21 +279,17 @@ class PersonalCog(commands.Cog):
                     "prio": hoechste_prio
                 })
 
-        # 2. Schritt: Von oben nach unten sortieren (B5 -> B4 -> ... -> M1)
+        # Nach Priorität sortieren (B5 ganz oben, M1 ganz unten)
         beamten_liste.sort(key=lambda x: x["prio"])
 
-        # 3. Schritt: In die Datenbank eintragen und von 01 an durchnummerieren
         neue_mitarbeiter_counter = 0
         aktueller_index = 1
 
         for data in beamten_liste:
             member = data["member"]
             user_id = str(member.id)
-            
-            # Generiere eine sauber formatierte zweistellige Nummer (01, 02, etc.)
             dienstnummer_str = f"{aktueller_index:02d}"
             
-            # In die JSON-Struktur einpflegen (Abteilung bleibt unangetastet falls existent)
             lc.daten["mitarbeiter"][user_id] = {
                 "rang": data["ebene"],
                 "nummer": dienstnummer_str,
@@ -306,15 +300,13 @@ class PersonalCog(commands.Cog):
             neue_mitarbeiter_counter += 1
             aktueller_index += 1
 
-        # 4. Schritt: Datei speichern und Listen-Kanal rendern
         lc.save_data()
         await lc.update_list_channel(guild)
         
         await interaction.followup.send(
-            f"✅ **Datenbank-Import über IDs erfolgreich abgeschlossen!**\n\n"
+            f"✅ **Datenbank-Import blitzschnell abgeschlossen!**\n\n"
             f"• Insgesamt `{neue_mitarbeiter_counter}` Beamte wurden im System erfasst.\n"
-            f"• Dienstnummern wurden von **Rang 1 (B5) bis {neue_mitarbeiter_counter} (M1)** lückenlos vergeben.\n\n"
-            f"Der Dienstnummern-Kanal wurde aktualisiert!", 
+            f"• Dienstnummern wurden von **01 bis {neue_mitarbeiter_counter}** lückenlos vergeben.", 
             ephemeral=True
         )
 
