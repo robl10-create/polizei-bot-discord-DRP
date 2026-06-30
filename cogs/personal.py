@@ -2,7 +2,6 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from .listen import ListenCog
-import re
 
 # ==========================================
 # INTERAKTIVE MENÜS FÜR DEN WEEKLY INSIDER
@@ -166,8 +165,6 @@ class WeeklyInsiderSetupView(discord.ui.View):
         text += f"Unterschrift\n{interaction.user.mention} | ☀️"
         
         lc.save_data()
-        await lc.update_list_channel(guild)
-        
         await interaction.channel.send(content=text)
         
         final_info = "✅ **Die wöchentliche Liste wurde erfolgreich gepostet und die Server-Rollen wurden aktualisiert!**"
@@ -197,7 +194,7 @@ class WeeklyInsiderSetupView(discord.ui.View):
 
 
 # ==========================================
-# HAUPT COG MIT ANTI-SPAM & BLITZ-IMPORT
+# HAUPT COG MIT SANKTIONS- & PERSONAL-SYSTEM
 # ==========================================
 
 class PersonalCog(commands.Cog):
@@ -214,101 +211,6 @@ class PersonalCog(commands.Cog):
                 f"🚨 **Anti-Spam Schutz aktiv!** Bitte warte `{error.retry_after:.1f}` Sekunden, bevor du diesen Befehl erneut nutzt.", 
                 ephemeral=True
             )
-
-    # ==========================================
-    # AUTOMATISCHER BLITZ-IMPORT & NUMMERIERUNG
-    # ==========================================
-
-    @app_commands.command(name="personal-sync", description="Importiert alle bestehenden Beamten anhand ihrer Rollen-IDs blitzschnell.")
-    @app_commands.checks.has_permissions(manage_roles=True)
-    @app_commands.checks.cooldown(1, 30.0, key=lambda i: i.guild_id)
-    async def personal_sync(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
-        
-        guild = interaction.guild
-        lc = self.get_listen_cog()
-        
-        # Mapping aller Rollen-IDs mit Priorität (1 = ganz oben) und Zuweisungs-Kürzel
-        rang_daten = {
-            1453861118563979361: {"prio": 1,  "kuerzel": "B5", "ebene": "BHL"}, # B5 » [Landespolizeipräsident]
-            1447903859744706703: {"prio": 2,  "kuerzel": "B4", "ebene": "BHL"}, # B4 » [Polizeipräsident/in]
-            1447903828677496993: {"prio": 3,  "kuerzel": "B3", "ebene": "BHL"}, # B3 » [Polizeivizepräsident/in]
-            1447903769151930388: {"prio": 4,  "kuerzel": "B2", "ebene": "BHL"}, # B2 » [Erster Direktor/in beim Polizeipräsidenten]
-            1447903489018695732: {"prio": 5,  "kuerzel": "B1", "ebene": "BHL"}, # B1 » [Direktor/in beim Polizeipräsident]
-            
-            1434216338800382008: {"prio": 6,  "kuerzel": "H5", "ebene": "HD"},  # H5 » [Leitender Polizeidirektor/in]
-            1434216338800382005: {"prio": 7,  "kuerzel": "H4", "ebene": "HD"},  # H4 » [Polizeidirektor/in]
-            1434216338800382004: {"prio": 8,  "kuerzel": "H3", "ebene": "HD"},  # H3 » [Polizeioberrat/in]
-            1434216338775081030: {"prio": 9,  "kuerzel": "H2", "ebene": "HD"},  # H2 » [Polizeirat/in]
-            1434216338775081029: {"prio": 10, "kuerzel": "H1", "ebene": "HD"},  # H1 » [Polizeiratsanwärter/in]
-            
-            1434216338775081025: {"prio": 11, "kuerzel": "G6", "ebene": "GD"},  # G6 » [Erster Polizeihauptkommissar/in]
-            1434216338775081024: {"prio": 12, "kuerzel": "G5", "ebene": "GD"},  # G5 » [Polizeihauptkommissar mit Zulage/in]
-            1434216338775081023: {"prio": 13, "kuerzel": "G4", "ebene": "GD"},  # G4 » [Polizeihauptkommissar/in]
-            1434216338775081022: {"prio": 14, "kuerzel": "G3", "ebene": "GD"},  # G3 » [Polizeioberkommissar/in]
-            1434216338775081021: {"prio": 15, "kuerzel": "G2", "ebene": "GD"},  # G2 » [Polizeikommissar/in]
-            1434216338762764369: {"prio": 16, "kuerzel": "G1", "ebene": "GD"},  # G1 » [Polizeikommissar Anwärter/in]
-            
-            1434216338762764365: {"prio": 17, "kuerzel": "M5", "ebene": "MD"},  # M5 » [Polizeihauptmeister/in mit Zulage]
-            1434216338762764364: {"prio": 18, "kuerzel": "M4", "ebene": "MD"},  # M4 » [Polizeihauptmeister/in]
-            1434216338762764363: {"prio": 19, "kuerzel": "M3", "ebene": "MD"},  # M3 » [Polizeiobermeister/in]
-            1434216338762764362: {"prio": 20, "kuerzel": "M2", "ebene": "MD"},  # M2 » [Polizeimeister/in]
-            1434216338762764360: {"prio": 21, "kuerzel": "M1", "ebene": "MD"}   # M1 » [Polizeimeister Anwärter/in]
-        }
-        
-        beamten_liste = []
-
-        # Nutzt guild.members (Cache) für sofortige Rückmeldung
-        for member in guild.members:
-            if member.bot:
-                continue
-                
-            hoechste_prio = 999
-            gefundener_rang = None
-            
-            for role in member.roles:
-                if role.id in rang_daten:
-                    if rang_daten[role.id]["prio"] < hoechste_prio:
-                        hoechste_prio = rang_daten[role.id]["prio"]
-                        gefundener_rang = rang_daten[role.id]
-            
-            if gefundener_rang:
-                beamten_liste.append({
-                    "member": member,
-                    "ebene": gefundener_rang["ebene"],
-                    "prio": hoechste_prio
-                })
-
-        # Nach Priorität sortieren (B5 ganz oben, M1 ganz unten)
-        beamten_liste.sort(key=lambda x: x["prio"])
-
-        neue_mitarbeiter_counter = 0
-        aktueller_index = 1
-
-        for data in beamten_liste:
-            member = data["member"]
-            user_id = str(member.id)
-            dienstnummer_str = f"{aktueller_index:02d}"
-            
-            lc.daten["mitarbeiter"][user_id] = {
-                "rang": data["ebene"],
-                "nummer": dienstnummer_str,
-                "name": member.name,
-                "abteilung": lc.daten["mitarbeiter"].get(user_id, {}).get("abteilung", None)
-            }
-            
-            neue_mitarbeiter_counter += 1
-            aktueller_index += 1
-
-        lc.save_data()
-        await lc.update_list_channel(guild)
-        
-        await interaction.followup.send(
-            f"✅ **Datenbank-Import blitzschnell abgeschlossen!**\n\n"
-            f"• Insgesamt `{neue_mitarbeiter_counter}` Beamte wurden im System erfasst.\n"
-            f"• Dienstnummern wurden von **01 bis {neue_mitarbeiter_counter}** lückenlos vergeben.", 
-            ephemeral=True
-        )
 
     # ==========================================
     # SANKTIONSBEFEHLE
@@ -467,7 +369,7 @@ class PersonalCog(commands.Cog):
         await interaction.followup.send(embed=embed)
 
     # ==========================================
-    # CORE MANAGEMENT COMMANDS
+    # CORE MANAGEMENT COMMANDS WITH NUMBERS
     # ==========================================
 
     @app_commands.command(name="beförderung", description="Befördere einen Mitarbeiter und passe seine Rollen automatisch an.")
@@ -500,6 +402,7 @@ class PersonalCog(commands.Cog):
         except discord.Forbidden:
             rollen_status = f"⚠️ **System-Fehler:** Bot-Hierarchie unzureichend! Rolle konnte nicht angepasst werden."
 
+        # Speichert die Dienstnummer und Meta-Infos im JSON-Backend ab
         if user_id not in lc.daten["mitarbeiter"]:
             lc.daten["mitarbeiter"][user_id] = {"abteilung": None}
             
@@ -523,7 +426,6 @@ class PersonalCog(commands.Cog):
         embed.set_footer(text="🇩🇪 Geprüftes Dokument • PPD Bundeskartei", icon_url=self.bot.user.display_avatar.url)
         
         await interaction.followup.send(embed=embed)
-        await lc.update_list_channel(interaction.guild)
 
     @app_commands.command(name="degradierung", description="Degradiere einen Mitarbeiter und passe seine Rollen automatisch an.")
     @app_commands.choices(ebene=[
@@ -575,7 +477,6 @@ class PersonalCog(commands.Cog):
             embed.set_footer(text="🇩🇪 Geprüftes Dokument • PPD Bundeskartei", icon_url=self.bot.user.display_avatar.url)
             
             await interaction.followup.send(embed=embed)
-            await lc.update_list_channel(interaction.guild)
         else:
             await interaction.followup.send("Dieser Nutzer war nicht im System registriert.", ephemeral=True)
 
@@ -611,7 +512,6 @@ class PersonalCog(commands.Cog):
             embed.set_footer(text="Geschlossene Akte • PPD Archiv", icon_url=self.bot.user.display_avatar.url)
             
             await interaction.followup.send(embed=embed)
-            await lc.update_list_channel(interaction.guild)
         else:
             await interaction.followup.send("Mitarbeiter nicht in der Liste gefunden.", ephemeral=True)
 
@@ -637,9 +537,8 @@ class PersonalCog(commands.Cog):
             embed.set_footer(text="Sondereinheiten • PPD Taktikakte", icon_url=self.bot.user.display_avatar.url)
             
             await interaction.response.send_message(embed=embed)
-            await lc.update_list_channel(interaction.guild)
         else:
-            await interaction.response.send_message("Der Mitarbeiter muss zuerst eine Dienstnummer via /beförderung erhalten.", ephemeral=True)
+            await interaction.response.send_message("Der Mitarbeiter muss zuerst im System registriert sein (z.B. über /beförderung).", ephemeral=True)
 
     @app_commands.command(name="abteilungs-austritt", description="Entferne einen Mitarbeiter aus einer Abteilung.")
     @app_commands.checks.has_permissions(manage_roles=True)
@@ -664,7 +563,6 @@ class PersonalCog(commands.Cog):
             embed.set_footer(text="Sondereinheiten • PPD Taktikakte", icon_url=self.bot.user.display_avatar.url)
             
             await interaction.response.send_message(embed=embed)
-            await lc.update_list_channel(interaction.guild)
         else:
             await interaction.response.send_message("Mitarbeiter hat keine Abteilung oder ist nicht im System.", ephemeral=True)
 
