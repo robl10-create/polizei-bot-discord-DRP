@@ -197,7 +197,7 @@ class WeeklyInsiderSetupView(discord.ui.View):
 
 
 # ==========================================
-# HAUPT COG WITH ANTI-SPAM & SYNC
+# HAUPT COG MIT ANTI-SPAM & ERST-IMPORT
 # ==========================================
 
 class PersonalCog(commands.Cog):
@@ -216,96 +216,96 @@ class PersonalCog(commands.Cog):
             )
 
     # ==========================================
-    # NEUER AUTOMATISCHER ROLE-SYNC COMMAND
+    # AUTOMATISCHER ERST-IMPORT & NUMMERIERUNG
     # ==========================================
 
-    @app_commands.command(name="personal-sync", description="Synchronisiert die interne Dienstnummern-Liste automatisch anhand aller Server-Rollen.")
+    @app_commands.command(name="personal-sync", description="Importiert alle bestehenden Beamten anhand ihrer Rollen und nummeriert sie von oben nach unten.")
     @app_commands.checks.has_permissions(manage_roles=True)
-    @app_commands.checks.cooldown(1, 30.0, key=lambda i: i.guild_id) # 30 Sek Cooldown für den gesamten Server, da rechenintensiv
+    @app_commands.checks.cooldown(1, 30.0, key=lambda i: i.guild_id)
     async def personal_sync(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         
         guild = interaction.guild
         lc = self.get_listen_cog()
         
-        # Definiere die exakten Rollennamen, nach denen gesucht werden soll
-        md_rollen_namen = ["M1", "M2", "M3", "M4", "M5"]
-        gd_rollen_namen = ["G1", "G2", "G3", "G4", "G5", "G6"]
-        hd_rollen_namen = ["HD"] 
-        bhl_rollen_namen = ["BHL"]
+        # Rang-Reihenfolge definieren (Wichtig für die Sortierung von oben nach unten)
+        rang_ordnung = {
+            "BHL": 1,
+            "HD": 2,
+            "G6": 3, "G5": 4, "G4": 5, "G3": 6, "G2": 7, "G1": 8,
+            "M5": 9, "M4": 10, "M3": 11, "M2": 12, "M1": 13
+        }
+        
+        beamten_liste = []
 
-        aktualisiert_counter = 0
-        neue_mitarbeiter_counter = 0
-
-        # Alle Mitglieder des Servers durchlaufen
+        # 1. Schritt: Alle Mitglieder scannen und relevante Beamte sammeln
         async for member in guild.fetch_members(limit=None):
             if member.bot:
                 continue
                 
-            ist_beamter = False
-            gefundene_ebene = None
+            hoechster_rang = None
+            prioritaet = 999
+            ebene = None
             
-            # Rollen des Mitglieds überprüfen
+            # Prüfen, welche der definierten Rollen das Mitglied hat
             for role in member.roles:
-                if role.name in md_rollen_namen:
-                    gefundene_ebene = "MD"
-                    ist_beamter = True
-                    break
-                elif role.name in gd_rollen_namen:
-                    gefundene_ebene = "GD"
-                    ist_beamter = True
-                    break
-                elif role.name in hd_rollen_namen:
-                    gefundene_ebene = "HD"
-                    ist_beamter = True
-                    break
-                elif role.name in bhl_rollen_namen:
-                    gefundene_ebene = "BHL"
-                    ist_beamter = True
-                    break
-
-            if ist_beamter:
-                user_id = str(member.id)
-                display_name = member.display_name
+                if role.name in rang_ordnung:
+                    if rang_ordnung[role.name] < prioritaet:
+                        prioritaet = rang_ordnung[role.name]
+                        hoechster_rang = role.name
+            
+            if hoechster_rang:
+                if hoechster_rang in ["BHL"]: ebene = "BHL"
+                elif hoechster_rang in ["HD"]: ebene = "HD"
+                elif hoechster_rang.startswith("G"): ebene = "GD"
+                elif hoechster_rang.startswith("M"): ebene = "MD"
                 
-                # Versuche die Dienstnummer aus dem Nicknamen zu filtern (sucht nach Zahlen im Namen)
-                # Findet Zahlen in Mustern wie [MD-14], MD-14, 14 | Name oder [14] Name
-                zahlen_im_namen = re.findall(r'\d+', display_name)
-                dienstnummer = zahlen_im_namen[0] if zahlen_im_namen else "0000"
+                beamten_liste.append({
+                    "member": member,
+                    "rang_name": hoechster_rang,
+                    "ebene": ebene,
+                    "prio": prioritaet
+                })
 
-                # Wenn der Mitarbeiter noch gar nicht in der JSON steht
-                if user_id not in lc.daten["mitarbeiter"]:
-                    lc.daten["mitarbeiter"][user_id] = {
-                        "rang": gefundene_ebene,
-                        "nummer": dienstnummer,
-                        "name": member.name,
-                        "abteilung": None
-                    }
-                    neue_mitarbeiter_counter += 1
-                else:
-                    # Wenn er existiert, aktualisieren wir Rang und Name auf den neuesten Server-Stand
-                    lc.daten["mitarbeiter"][user_id]["rang"] = gefundene_ebene
-                    lc.daten["mitarbeiter"][user_id]["name"] = member.name
-                    # Dienstnummer nur überschreiben, wenn wir eine echte Zahl im Nicknamen gefunden haben
-                    if dienstnummer != "0000":
-                        lc.daten["mitarbeiter"][user_id]["nummer"] = dienstnummer
-                        
-                    aktualisiert_counter += 1
+        # 2. Schritt: Von oben nach unten sortieren (BHL zuerst, dann HD, G6...M1)
+        beamten_liste.sort(key=lambda x: x["prio"])
 
-        # Daten speichern und den Text-Kanal der Liste im Discord neu rendern
+        # 3. Schritt: In die Datenbank eintragen und von 1 an durchnummerieren
+        neue_mitarbeiter_counter = 0
+        aktueller_index = 1
+
+        for data in beamten_liste:
+            member = data["member"]
+            user_id = str(member.id)
+            
+            # Generiere eine zweistellige Nummer (z.B. 01, 02, 12)
+            dienstnummer_str = f"{aktueller_index:02d}"
+            
+            # Eintrag erstellen oder überschreiben (Abteilung bleibt erhalten, falls schon vorhanden)
+            lc.daten["mitarbeiter"][user_id] = {
+                "rang": data["ebene"],
+                "nummer": dienstnummer_str,
+                "name": member.name,
+                "abteilung": lc.daten["mitarbeiter"].get(user_id, {}).get("abteilung", None)
+            }
+            
+            neue_mitarbeiter_counter += 1
+            aktueller_index += 1
+
+        # 4. Schritt: Speichern und die Liste im Discord-Kanal visuell neu aufbauen
         lc.save_data()
         await lc.update_list_channel(guild)
         
         await interaction.followup.send(
-            f"✅ **Datenbank-Synchronisation abgeschlossen!**\n\n"
-            f"• `{neue_mitarbeiter_counter}` neue Beamte im System registriert.\n"
-            f"• `{aktualisiert_counter}` Profile/Rollen auf den aktuellen Stand gebracht.\n\n"
-            f"Der Dienstnummern-Kanal wurde automatisch aktualisiert.", 
+            f"✅ **Erst-Import & Nummerierung erfolgreich!**\n\n"
+            f"• Insgesamt `{neue_mitarbeiter_counter}` Beamte wurden im System erfasst.\n"
+            f"• Die Dienstnummern wurden von **Rang 1 bis {neue_mitarbeiter_counter}** (von oben nach unten) vergeben.\n\n"
+            f"Der Dienstnummern-Kanal wurde aktualisiert!", 
             ephemeral=True
         )
 
     # ==========================================
-    # SANKTIONSBEFEHLE IM STIL VON IMAGE_CD0D17.PNG
+    # SANKTIONSBEFEHLE
     # ==========================================
 
     @app_commands.command(name="mv", description="Stellt eine Mündliche Dienstverwarnung aus.")
@@ -461,7 +461,7 @@ class PersonalCog(commands.Cog):
         await interaction.followup.send(embed=embed)
 
     # ==========================================
-    # CORE MANAGEMENT COMMANDS (BESTEHEND)
+    # CORE MANAGEMENT COMMANDS
     # ==========================================
 
     @app_commands.command(name="beförderung", description="Befördere einen Mitarbeiter und passe seine Rollen automatisch an.")
