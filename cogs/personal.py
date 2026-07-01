@@ -161,7 +161,7 @@ class WeeklyInsiderSetupView(discord.ui.View):
                 text += f"{member.mention}\n"
             text += "\n"
             
-        text += "Bei Fragen ein Behördenleitung-Ticket öffnen\n# 🎫 | kontakt-aufnehmen\n\n"
+        text += "Bei Fragen bitte ein -Allgemeine Fragen- Ticket öffnen\n# 🎫 | kontakt-aufnehmen\n\n"
         text += f"Unterschrift\n{interaction.user.mention} | ☀️"
         
         lc.save_data()
