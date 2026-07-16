@@ -84,21 +84,21 @@ class WeeklyInsiderSetupView(discord.ui.View):
         await interaction.response.defer()
         view = discord.ui.View()
         view.add_item(MemberSelect("GD", self))
-        await interaction.followup.edit_message(message_id=interaction.message.id, content="**Wähle die Mitarbeiter für den Gehobenen Dienst aus:**", view=view)
+        await interaction.edit_original_response(content="**Wähle die Mitarbeiter für den Gehobenen Dienst aus:**", view=view)
 
     @discord.ui.button(label="🛡️ Mittlerer Dienst hinzufügen", style=discord.ButtonStyle.primary, row=0)
     async def add_md(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer()
         view = discord.ui.View()
         view.add_item(MemberSelect("MD", self))
-        await interaction.followup.edit_message(message_id=interaction.message.id, content="**Wähle die Mitarbeiter für den Mittleren Dienst aus:**", view=view)
+        await interaction.edit_original_response(content="**Wähle die Mitarbeiter für den Mittleren Dienst aus:**", view=view)
 
     @discord.ui.button(label="⚠️ Verwarnung hinzufügen", style=discord.ButtonStyle.danger, row=1)
     async def add_vw(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer()
         view = discord.ui.View()
         view.add_item(MemberSelect("VW", self))
-        await interaction.followup.edit_message(message_id=interaction.message.id, content="**Wähle die Mitarbeiter für die Verwarnungen aus:**", view=view)
+        await interaction.edit_original_response(content="**Wähle die Mitarbeiter für die Verwarnungen aus:**", view=view)
 
     @discord.ui.button(label="🚀 Fertigstellen & Posten", style=discord.ButtonStyle.success, row=1)
     async def post_now(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -172,14 +172,14 @@ class WeeklyInsiderSetupView(discord.ui.View):
             error_msg = "\n".join(status_log)
             final_info += f"\n\n**Hinweis zu den Rollen:**\n{error_msg}"
             
-        await interaction.followup.edit_message(message_id=interaction.message.id, content=final_info, view=None)
+        await interaction.edit_original_response(content=final_info, view=None)
 
     async def process_next_member_rank(self, interaction: discord.Interaction, service_type: str):
         if self.members_to_process:
             member = self.members_to_process.pop(0)
             view = discord.ui.View()
             view.add_item(RankSelect(member, service_type, self))
-            await interaction.followup.edit_message(message_id=interaction.message.id, content=f"Welchen Rang erhält {member.mention}?", view=view)
+            await interaction.edit_original_response(content=f"Welchen Rang erhält {member.mention}?", view=view)
         else:
             await self.update_message(interaction)
 
@@ -190,7 +190,7 @@ class WeeklyInsiderSetupView(discord.ui.View):
         preview += "**Verwarnungen:**\n" + ("\n".join([f"• {m.display_name}" for m in self.verwarnungen]) if self.verwarnungen else "*Keine Einträge*") + "\n\n"
         preview += "Nutze die Buttons unten, um weitere Personen hinzuzufügen. Wenn alles passt, klicke auf Posten."
         
-        await interaction.followup.edit_message(message_id=interaction.message.id, content=preview, view=self)
+        await interaction.edit_original_response(content=preview, view=self)
 
 
 # ==========================================
@@ -519,6 +519,7 @@ class PersonalCog(commands.Cog):
     @app_commands.checks.has_permissions(manage_roles=True)
     @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
     async def abt_betritt(self, interaction: discord.Interaction, mitarbeiter: discord.Member, abteilung: str, grund: str = "Zulassungsverfahren bestanden"):
+        await interaction.response.defer()
         lc = self.get_listen_cog()
         user_id = str(mitarbeiter.id)
 
@@ -536,14 +537,15 @@ class PersonalCog(commands.Cog):
             embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
             embed.set_footer(text="Sondereinheiten • PPD Taktikakte", icon_url=self.bot.user.display_avatar.url)
             
-            await interaction.response.send_message(embed=embed)
+            await interaction.followup.send(embed=embed)
         else:
-            await interaction.response.send_message("Der Mitarbeiter muss zuerst im System registriert sein (z.B. über /beförderung).", ephemeral=True)
+            await interaction.followup.send("Der Mitarbeiter muss zuerst im System registriert sein (z.B. über /beförderung).", ephemeral=True)
 
     @app_commands.command(name="abteilungs-austritt", description="Entferne einen Mitarbeiter aus einer Abteilung.")
     @app_commands.checks.has_permissions(manage_roles=True)
     @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
     async def abt_austritt(self, interaction: discord.Interaction, mitarbeiter: discord.Member, grund: str = "Freiwillige Niederlegung / Rotation"):
+        await interaction.response.defer()
         lc = self.get_listen_cog()
         user_id = str(mitarbeiter.id)
 
@@ -562,9 +564,9 @@ class PersonalCog(commands.Cog):
             embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
             embed.set_footer(text="Sondereinheiten • PPD Taktikakte", icon_url=self.bot.user.display_avatar.url)
             
-            await interaction.response.send_message(embed=embed)
+            await interaction.followup.send(embed=embed)
         else:
-            await interaction.response.send_message("Mitarbeiter hat keine Abteilung oder ist nicht im System.", ephemeral=True)
+            await interaction.followup.send("Mitarbeiter hat keine Abteilung oder ist nicht im System.", ephemeral=True)
 
     @app_commands.command(name="weekly-insider", description="Erstellt die wöchentlichen Upranks über interaktive Auswahlmenüs.")
     @app_commands.checks.has_permissions(manage_roles=True)
