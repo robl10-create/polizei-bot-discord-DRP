@@ -116,7 +116,7 @@ class WeeklyInsiderSetupView(discord.ui.View):
         if self.gehobener_dienst:
             text += "**Gehobener Dienst**\n"
             for member, old_r, new_r in self.gehobener_dienst:
-                text += f"{member.mention} ➔ {old_r} ➔ {new_r}\n"
+                text += f"<@{member.id}> ➔ {old_r} ➔ {new_r}\n"
                 
                 role_to_remove = discord.utils.get(guild.roles, name=old_r)
                 role_to_add = discord.utils.get(guild.roles, name=new_r)
@@ -137,7 +137,7 @@ class WeeklyInsiderSetupView(discord.ui.View):
         if self.mittlerer_dienst:
             text += "**Mittlerer Dienst:**\n"
             for member, old_r, new_r in self.mittlerer_dienst:
-                text += f"{member.mention} ➔ {old_r} ➔ {new_r}\n"
+                text += f"<@{member.id}> ➔ {old_r} ➔ {new_r}\n"
                 
                 role_to_remove = discord.utils.get(guild.roles, name=old_r)
                 role_to_add = discord.utils.get(guild.roles, name=new_r)
@@ -158,11 +158,11 @@ class WeeklyInsiderSetupView(discord.ui.View):
         if self.verwarnungen:
             text += "**Verwarnungen:**\n*(Dienstzeit nicht erfüllt)*\n"
             for member in self.verwarnungen:
-                text += f"{member.mention}\n"
+                text += f"<@{member.id}>\n"
             text += "\n"
             
         text += "Bei Fragen bitte ein -Allgemeine Fragen- Ticket öffnen\n# 🎫 | kontakt-aufnehmen\n\n"
-        text += f"Unterschrift\n{interaction.user.mention} | ☀️"
+        text += f"Unterschrift\n<@{interaction.user.id}> | ☀️"
         
         lc.save_data()
         await interaction.channel.send(content=text)
@@ -179,7 +179,7 @@ class WeeklyInsiderSetupView(discord.ui.View):
             member = self.members_to_process.pop(0)
             view = discord.ui.View()
             view.add_item(RankSelect(member, service_type, self))
-            await interaction.edit_original_response(content=f"Welchen Rang erhält {member.mention}?", view=view)
+            await interaction.edit_original_response(content=f"Welchen Rang erhält <@{member.id}>?", view=view)
         else:
             await self.update_message(interaction)
 
@@ -241,7 +241,7 @@ class PersonalCog(commands.Cog):
         
         inhalt = (
             f"📋 **Stammdaten des Beamten**\n"
-            f"• **Name:** {mitarbeiter.mention}\n\n"
+            f"• **Name:** <@{mitarbeiter.id}>\n\n"
             f"📢 **Sanktionsstatus**\n"
             f"• Hiermit erhält der Beamte eine **Mündliche Dienstverwarnung**.\n\n"
             f"🔍 **Beweisführung**\n"
@@ -254,11 +254,11 @@ class PersonalCog(commands.Cog):
         )
         embed.add_field(name="​", value=inhalt, inline=False)
         
-        unterschriften = f"{interaction.user.mention}\n*Disziplinarausschuss PPD*"
+        unterschriften = f"<@{interaction.user.id}>\n*Disziplinarausschuss PPD*"
         if mitunterschrift_1:
-            unterschriften += f"\n{mitunterschrift_1.mention}"
+            unterschriften += f"\n<@{mitunterschrift_1.id}>"
         if mitunterschrift_2:
-            unterschriften += f"\n{mitunterschrift_2.mention}"
+            unterschriften += f"\n<@{mitunterschrift_2.id}>"
             
         embed.add_field(name="🖋️ Autorisierte Unterschrift", value=unterschriften, inline=True)
         embed.add_field(name="📅 Ausstellungsdatum", value=f"`{interaction.created_at.strftime('%d.%m.%Y - %H:%M')} Uhr`", inline=True)
@@ -293,7 +293,7 @@ class PersonalCog(commands.Cog):
         
         inhalt = (
             f"📋 **Stammdaten des Beamten**\n"
-            f"• **Name:** {mitarbeiter.mention}\n\n"
+            f"• **Name:** <@{mitarbeiter.id}>\n\n"
             f"📢 **Sanktionsstatus**\n"
             f"• Hiermit erhält der Beamte eine **Schriftliche Dienstverwarnung**.\n\n"
             f"🔍 **Beweisführung**\n"
@@ -306,11 +306,11 @@ class PersonalCog(commands.Cog):
         )
         embed.add_field(name="​", value=inhalt, inline=False)
         
-        unterschriften = f"{interaction.user.mention}\n*Disziplinarausschuss PPD*"
+        unterschriften = f"<@{interaction.user.id}>\n*Disziplinarausschuss PPD*"
         if mitunterschrift_1:
-            unterschriften += f"\n{mitunterschrift_1.mention}"
+            unterschriften += f"\n<@{mitunterschrift_1.id}>"
         if mitunterschrift_2:
-            unterschriften += f"\n{mitunterschrift_2.mention}"
+            unterschriften += f"\n<@{mitunterschrift_2.id}>"
             
         embed.add_field(name="🖋️ Autorisierte Unterschrift", value=unterschriften, inline=True)
         embed.add_field(name="📅 Ausstellungsdatum", value=f"`{interaction.created_at.strftime('%d.%m.%Y - %H:%M')} Uhr`", inline=True)
@@ -341,7 +341,7 @@ class PersonalCog(commands.Cog):
         
         inhalt = (
             f"📋 **Stammdaten des Beamten**\n"
-            f"• **Name:** {mitarbeiter.mention}\n\n"
+            f"• **Name:** <@{mitarbeiter.id}>\n\n"
             f"📢 **Sanktionsstatus**\n"
             f"• Hiermit erhält der Beamte eine temporäre **Suspendierung vom Dienst**.\n\n"
             f"⏳ **Dauer der Maßnahme**\n"
@@ -354,11 +354,11 @@ class PersonalCog(commands.Cog):
         )
         embed.add_field(name="​", value=inhalt, inline=False)
         
-        unterschriften = f"{interaction.user.mention}\n*Behördenleitung / Direktion*"
+        unterschriften = f"<@{interaction.user.id}>\n*Behördenleitung / Direktion*"
         if mitunterschrift_1:
-            unterschriften += f"\n{mitunterschrift_1.mention}"
+            unterschriften += f"\n<@{mitunterschrift_1.id}>"
         if mitunterschrift_2:
-            unterschriften += f"\n{mitunterschrift_2.mention}"
+            unterschriften += f"\n<@{mitunterschrift_2.id}>"
             
         embed.add_field(name="🖋️ Autorisierte Unterschrift", value=unterschriften, inline=True)
         embed.add_field(name="📅 Ausstellungsdatum", value=f"`{interaction.created_at.strftime('%d.%m.%Y - %H:%M')} Uhr`", inline=True)
@@ -402,7 +402,6 @@ class PersonalCog(commands.Cog):
         except discord.Forbidden:
             rollen_status = f"⚠️ **System-Fehler:** Bot-Hierarchie unzureichend! Rolle konnte nicht angepasst werden."
 
-        # Speichert die Dienstnummer und Meta-Infos im JSON-Backend ab
         if user_id not in lc.daten["mitarbeiter"]:
             lc.daten["mitarbeiter"][user_id] = {"abteilung": None}
             
@@ -415,12 +414,12 @@ class PersonalCog(commands.Cog):
         embed.set_author(name="Dienstliche Bekanntmachung • Personalabteilung", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
         
         inhalt = (
-            f"📋 **Stammdaten des Beamten**\n• **Name:** {mitarbeiter.mention}\n• **Ebene:** `{ebene}`\n• **Dienstnummer:** `{ebene}-{dienstnummer}`\n\n"
+            f"📋 **Stammdaten des Beamten**\n• **Name:** <@{mitarbeiter.id}>\n• **Ebene:** `{ebene}`\n• **Dienstnummer:** `{ebene}-{dienstnummer}`\n\n"
             f"📈 **Dienstgradänderung**\n• **Alter Dienstgrad:** {alter_rang.mention}\n• **Neuer Dienstgrad:** {neuer_rang.mention}\n\n"
             f"📜 **Begründung der Maßnahme**\n*{grund}*\n\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n\n⚙️ **Automatische Protokollierung**\n{rollen_status}"
         )
         embed.add_field(name="​", value=inhalt, inline=False)
-        embed.add_field(name="🖋️ Autorisierte Unterschrift", value=f"{interaction.user.mention}\n*Personalabteilung PPD*", inline=True)
+        embed.add_field(name="🖋️ Autorisierte Unterschrift", value=f"<@{interaction.user.id}>\n*Personalabteilung PPD*", inline=True)
         embed.add_field(name="📅 Ausstellungsdatum", value=f"`{interaction.created_at.strftime('%d.%m.%Y - %H:%M')} Uhr`", inline=True)
         embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
         embed.set_footer(text="🇩🇪 Geprüftes Dokument • PPD Bundeskartei", icon_url=self.bot.user.display_avatar.url)
@@ -450,35 +449,37 @@ class PersonalCog(commands.Cog):
         lc = self.get_listen_cog()
         user_id = str(mitarbeiter.id)
 
-        if user_id in lc.daten["mitarbeiter"]:
-            try:
-                await mitarbeiter.add_roles(neuer_rang, reason="PPD System: Disziplinarmaßnahme")
-                await mitarbeiter.remove_roles(alter_rang, reason="PPD System: Disziplinarmaßnahme")
-                rollen_status = f"🟥 **Rollen-Update:** {neuer_rang.mention} zugewiesen, {alter_rang.mention} entzogen."
-            except discord.Forbidden:
-                rollen_status = f"⚠️ **System-Fehler:** Bot-Hierarchie unzureichend!"
+        # HIER GEÄNDERT: Falls der User noch nicht in der JSON steht, legen wir ihn jetzt einfach automatisch an!
+        if user_id not in lc.daten["mitarbeiter"]:
+            lc.daten["mitarbeiter"][user_id] = {"abteilung": None}
 
-            lc.daten["mitarbeiter"][user_id]["rang"] = ebene
-            lc.daten["mitarbeiter"][user_id]["nummer"] = dienstnummer
-            lc.save_data()
-            
-            embed = discord.Embed(title="⚠️ DISZIPLINARMASSNAHME | DEGRADIERUNG", color=discord.Color.from_rgb(231, 76, 60))
-            embed.set_author(name="Dienstliche Bekanntmachung • Disziplinarbeschluss", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
-            
-            inhalt = (
-                f"📋 **Stammdaten des Beamten**\n• **Name:** {mitarbeiter.mention}\n• **Ebene:** `{ebene}`\n• **Dienstnummer:** `{ebene}-{dienstnummer}`\n\n"
-                f"📉 **Dienstgradänderung**\n• **Alter Dienstgrad:** {alter_rang.mention}\n• **Neuer Dienstgrad:** {neuer_rang.mention}\n\n"
-                f"📜 **Disziplinarischer Grund**\n*{grund}*\n\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n\n⚙️ **Automatische Protokollierung**\n{rollen_status}"
-            )
-            embed.add_field(name="​", value=inhalt, inline=False)
-            embed.add_field(name="🖋️ Autorisierte Unterschrift", value=f"{interaction.user.mention}\n*Disziplinarausschuss PPD*", inline=True)
-            embed.add_field(name="📅 Ausstellungsdatum", value=f"`{interaction.created_at.strftime('%d.%m.%Y - %H:%M')} Uhr`", inline=True)
-            embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
-            embed.set_footer(text="🇩🇪 Geprüftes Dokument • PPD Bundeskartei", icon_url=self.bot.user.display_avatar.url)
-            
-            await interaction.followup.send(embed=embed)
-        else:
-            await interaction.followup.send("Dieser Nutzer war nicht im System registriert.", ephemeral=True)
+        try:
+            await mitarbeiter.add_roles(neuer_rang, reason="PPD System: Disziplinarmaßnahme")
+            await mitarbeiter.remove_roles(alter_rang, reason="PPD System: Disziplinarmaßnahme")
+            rollen_status = f"🟥 **Rollen-Update:** {neuer_rang.mention} zugewiesen, {alter_rang.mention} entzogen."
+        except discord.Forbidden:
+            rollen_status = f"⚠️ **System-Fehler:** Bot-Hierarchie unzureichend!"
+
+        lc.daten["mitarbeiter"][user_id]["rang"] = ebene
+        lc.daten["mitarbeiter"][user_id]["nummer"] = dienstnummer
+        lc.daten["mitarbeiter"][user_id]["name"] = mitarbeiter.name
+        lc.save_data()
+        
+        embed = discord.Embed(title="⚠️ DISZIPLINARMASSNAHME | DEGRADIERUNG", color=discord.Color.from_rgb(231, 76, 60))
+        embed.set_author(name="Dienstliche Bekanntmachung • Disziplinarbeschluss", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
+        
+        inhalt = (
+            f"📋 **Stammdaten des Beamten**\n• **Name:** <@{mitarbeiter.id}>\n• **Ebene:** `{ebene}`\n• **Dienstnummer:** `{ebene}-{dienstnummer}`\n\n"
+            f"📉 **Dienstgradänderung**\n• **Alter Dienstgrad:** {alter_rang.mention}\n• **Neuer Dienstgrad:** {neuer_rang.mention}\n\n"
+            f"📜 **Disziplinarischer Grund**\n*{grund}*\n\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n\n⚙️ **Automatische Protokollierung**\n{rollen_status}"
+        )
+        embed.add_field(name="​", value=inhalt, inline=False)
+        embed.add_field(name="🖋️ Autorisierte Unterschrift", value=f"<@{interaction.user.id}>\n*Disziplinarausschuss PPD*", inline=True)
+        embed.add_field(name="📅 Ausstellungsdatum", value=f"`{interaction.created_at.strftime('%d.%m.%Y - %H:%M')} Uhr`", inline=True)
+        embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
+        embed.set_footer(text="🇩🇪 Geprüftes Dokument • PPD Bundeskartei", icon_url=self.bot.user.display_avatar.url)
+        
+        await interaction.followup.send(embed=embed)
 
     @app_commands.command(name="kündigung", description="Entlasse einen Mitarbeiter und entziehe ihm seine Dienstrolle.")
     @app_commands.checks.has_permissions(manage_roles=True)
@@ -502,11 +503,11 @@ class PersonalCog(commands.Cog):
             embed.set_author(name="Dienstliche Bekanntmachung • Entlassungsurkunde", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
             
             inhalt = (
-                f"📋 **Stammdaten des Ex-Beamten**\n• **Name:** {mitarbeiter.mention}\n• **Letzter Dienstgrad:** {letzter_rang.mention}\n\n"
+                f"📋 **Stammdaten des Ex-Beamten**\n• **Name:** <@{mitarbeiter.id}>\n• **Letzter Dienstgrad:** {letzter_rang.mention}\n\n"
                 f"📜 **Offizielle Begründung**\n*{grund}*\n\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n\n⚙️ **Automatische Protokollierung**\n{rollen_status}"
             )
             embed.add_field(name="​", value=inhalt, inline=False)
-            embed.add_field(name="🖋️ Autorisierte Unterschrift", value=f"{interaction.user.mention}\n*Behördenleitung PPD*", inline=True)
+            embed.add_field(name="🖋️ Autorisierte Unterschrift", value=f"<@{interaction.user.id}>\n*Behördenleitung PPD*", inline=True)
             embed.add_field(name="📅 Ausstellungsdatum", value=f"`{interaction.created_at.strftime('%d.%m.%Y - %H:%M')} Uhr`", inline=True)
             embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
             embed.set_footer(text="Geschlossene Akte • PPD Archiv", icon_url=self.bot.user.display_avatar.url)
@@ -530,9 +531,9 @@ class PersonalCog(commands.Cog):
             embed = discord.Embed(title="🔰 SONDERDIVISION | ZUWEISUNG", color=discord.Color.from_rgb(52, 152, 219))
             embed.set_author(name="Dienstliche Bekanntmachung • Versetzung", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
             
-            inhalt = f"📋 **Stammdaten des Beamten**\n• **Name:** {mitarbeiter.mention}\n• **Zugewiesene Division:** `{abteilung}`\n\n📜 **Qualifikationsgrund**\n*{grund}*"
+            inhalt = f"📋 **Stammdaten des Beamten**\n• **Name:** <@{mitarbeiter.id}>\n• **Zugewiesene Division:** `{abteilung}`\n\n📜 **Qualifikationsgrund**\n*{grund}*"
             embed.add_field(name="​", value=inhalt, inline=False)
-            embed.add_field(name="🖋️ Unterschrift Direktion", value=f"{interaction.user.mention}\n*Kommandantur*", inline=True)
+            embed.add_field(name="🖋️ Unterschrift Direktion", value=f"<@{interaction.user.id}>\n*Kommandantur*", inline=True)
             embed.add_field(name="📅 Datum", value=f"`{interaction.created_at.strftime('%d.%m.%Y')}`", inline=True)
             embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
             embed.set_footer(text="Sondereinheiten • PPD Taktikakte", icon_url=self.bot.user.display_avatar.url)
@@ -557,9 +558,9 @@ class PersonalCog(commands.Cog):
             embed = discord.Embed(title="🚪 SONDERDIVISION | AUSTRITT", color=discord.Color.from_rgb(241, 196, 15))
             embed.set_author(name="Dienstliche Bekanntmachung • Rotationsbeschluss", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
             
-            inhalt = f"📋 **Stammdaten des Beamten**\n• **Name:** {mitarbeiter.mention}\n• **Ausgeschieden aus:** `{alt_abt}`\n\n📜 **Grund des Austritts**\n*{grund}*"
+            inhalt = f"📋 **Stammdaten des Beamten**\n• **Name:** <@{mitarbeiter.id}>\n• **Ausgeschieden aus:** `{alt_abt}`\n\n📜 **Grund des Austritts**\n*{grund}*"
             embed.add_field(name="​", value=inhalt, inline=False)
-            embed.add_field(name="🖋️ Unterschrift Direktion", value=f"{interaction.user.mention}\n*Kommandantur*", inline=True)
+            embed.add_field(name="🖋️ Unterschrift Direktion", value=f"<@{interaction.user.id}>\n*Kommandantur*", inline=True)
             embed.add_field(name="📅 Datum", value=f"`{interaction.created_at.strftime('%d.%m.%Y')}`", inline=True)
             embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
             embed.set_footer(text="Sondereinheiten • PPD Taktikakte", icon_url=self.bot.user.display_avatar.url)
