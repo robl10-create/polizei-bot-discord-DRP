@@ -3,6 +3,27 @@ from discord.ext import commands
 from discord import app_commands
 from .listen import ListenCog
 
+# ID der erlaubten Dienstaufsichts-Rolle
+ALLOWED_ROLE_ID = 1497905102156206162
+
+def has_allowed_role():
+    """Checkt, ob der User die manage_roles Berechtigung ODER die spezifische Rolle hat."""
+    async def predicate(interaction: discord.Interaction) -> bool:
+        if interaction.user.guild_permissions.manage_roles:
+            return True
+        
+        # Prüfen, ob der User die spezifische Rolle besitzt
+        if any(role.id == ALLOWED_ROLE_ID for role in interaction.user.roles):
+            return True
+            
+        await interaction.response.send_message(
+            "🚨 **Zugriff verweigert!** Du benötigst die Rolle **SG23 | Dienstaufsicht** oder die Berechtigung 'Rollen verwalten', um diesen Befehl zu nutzen.", 
+            ephemeral=True
+        )
+        return False
+    return app_commands.check(predicate)
+
+
 # ==========================================
 # INTERAKTIVE MENÜS FÜR DEN WEEKLY INSIDER
 # ==========================================
@@ -33,7 +54,6 @@ class RankSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        
         old_rank_str, new_rank_str = self.values[0].split("|")
         
         if self.service_type == "GD":
@@ -207,10 +227,16 @@ class PersonalCog(commands.Cog):
     @commands.Cog.listener()
     async def on_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
         if isinstance(error, app_commands.CommandOnCooldown):
-            await interaction.response.send_message(
-                f"🚨 **Anti-Spam Schutz aktiv!** Bitte warte `{error.retry_after:.1f}` Sekunden, bevor du diesen Befehl erneut nutzt.", 
-                ephemeral=True
-            )
+            if not interaction.response.is_done():
+                await interaction.response.send_message(
+                    f"🚨 **Anti-Spam Schutz aktiv!** Bitte warte `{error.retry_after:.1f}` Sekunden, bevor du diesen Befehl erneut nutzt.", 
+                    ephemeral=True
+                )
+            else:
+                await interaction.followup.send(
+                    f"🚨 **Anti-Spam Schutz aktiv!** Bitte warte `{error.retry_after:.1f}` Sekunden.", 
+                    ephemeral=True
+                )
 
     # ==========================================
     # SANKTIONSBEFEHLE
@@ -222,7 +248,7 @@ class PersonalCog(commands.Cog):
         app_commands.Choice(name="📸 Screenshot", value="Screenshot (Bildbeweis)"),
         app_commands.Choice(name="📂 Zeugenaussage / Dienstbericht", value="Zeugenaussage / Interner Dienstbericht")
     ])
-    @app_commands.checks.has_permissions(manage_roles=True)
+    @has_allowed_role()
     @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
     async def muendliche_verwarnung(
         self, 
@@ -274,7 +300,7 @@ class PersonalCog(commands.Cog):
         app_commands.Choice(name="📸 Screenshot", value="Screenshot (Bildbeweis)"),
         app_commands.Choice(name="📂 Zeugenaussage / Dienstbericht", value="Zeugenaussage / Interner Dienstbericht")
     ])
-    @app_commands.checks.has_permissions(manage_roles=True)
+    @has_allowed_role()
     @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
     async def schriftliche_verwarnung(
         self, 
@@ -322,7 +348,7 @@ class PersonalCog(commands.Cog):
 
     @app_commands.command(name="su", description="Stellt eine dienstliche Suspendierung aus.")
     @app_commands.describe(dauer_in_tagen="Die Dauer der Suspendierung (z.B. 3 oder 7)")
-    @app_commands.checks.has_permissions(manage_roles=True)
+    @has_allowed_role()
     @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
     async def suspendierung(
         self, 
@@ -369,7 +395,7 @@ class PersonalCog(commands.Cog):
         await interaction.followup.send(content=f"<@{mitarbeiter.id}>", embed=embed)
 
     # ==========================================
-    # CORE MANAGEMENT COMMANDS (Ohne Dienstnummer)
+    # CORE MANAGEMENT COMMANDS
     # ==========================================
 
     @app_commands.command(name="beförderung", description="Befördere einen Mitarbeiter und passe seine Rollen automatisch an.")
@@ -379,7 +405,7 @@ class PersonalCog(commands.Cog):
         app_commands.Choice(name="🦅 Höherer Dienst (HD)", value="HD"),
         app_commands.Choice(name="💼 Behördenleitung (BHL)", value="BHL")
     ])
-    @app_commands.checks.has_permissions(manage_roles=True)
+    @has_allowed_role()
     @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
     async def befoerderung(
         self, 
@@ -388,7 +414,9 @@ class PersonalCog(commands.Cog):
         ebene: str, 
         alter_rang: discord.Role, 
         neuer_rang: discord.Role, 
-        grund: str
+        grund: str,
+        mitunterschrift_1: discord.Member = None,
+        mitunterschrift_2: discord.Member = None
     ):
         await interaction.response.defer()
         lc = self.get_listen_cog()
@@ -411,14 +439,20 @@ class PersonalCog(commands.Cog):
         embed = discord.Embed(title="📈 DIENSTGRADÄNDERUNG | BEFÖRDERUNG", color=discord.Color.from_rgb(46, 204, 113))
         embed.set_author(name="Dienstliche Bekanntmachung • Personalabteilung", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
         
-        # HIER: Dienstnummer entfernt
         inhalt = (
             f"📋 **Stammdaten des Beamten**\n• **Name:** <@{mitarbeiter.id}>\n• **Ebene:** `{ebene}`\n\n"
             f"📈 **Dienstgradänderung**\n• **Alter Dienstgrad:** {alter_rang.mention}\n• **Neuer Dienstgrad:** {neuer_rang.mention}\n\n"
             f"📜 **Begründung der Maßnahme**\n*{grund}*\n\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n\n⚙️ **Automatische Protokollierung**\n{rollen_status}"
         )
         embed.add_field(name="​", value=inhalt, inline=False)
-        embed.add_field(name="🖋️ Autorisierte Unterschrift", value=f"<@{interaction.user.id}>\n*Personalabteilung PPD*", inline=True)
+        
+        unterschriften = f"<@{interaction.user.id}>\n*Personalabteilung PPD*"
+        if mitunterschrift_1:
+            unterschriften += f"\n<@{mitunterschrift_1.id}>"
+        if mitunterschrift_2:
+            unterschriften += f"\n<@{mitunterschrift_2.id}>"
+            
+        embed.add_field(name="🖋️ Autorisierte Unterschrift", value=unterschriften, inline=True)
         embed.add_field(name="📅 Ausstellungsdatum", value=f"`{interaction.created_at.strftime('%d.%m.%Y - %H:%M')} Uhr`", inline=True)
         embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
         embed.set_footer(text="🇩🇪 Geprüftes Dokument • PPD Bundeskartei", icon_url=self.bot.user.display_avatar.url)
@@ -432,7 +466,7 @@ class PersonalCog(commands.Cog):
         app_commands.Choice(name="🦅 Höherer Dienst (HD)", value="HD"),
         app_commands.Choice(name="💼 Behördenleitung (BHL)", value="BHL")
     ])
-    @app_commands.checks.has_permissions(manage_roles=True)
+    @has_allowed_role()
     @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
     async def degradierung(
         self, 
@@ -441,7 +475,9 @@ class PersonalCog(commands.Cog):
         ebene: str, 
         alter_rang: discord.Role, 
         neuer_rang: discord.Role, 
-        grund: str
+        grund: str,
+        mitunterschrift_1: discord.Member = None,
+        mitunterschrift_2: discord.Member = None
     ):
         await interaction.response.defer()
         lc = self.get_listen_cog()
@@ -464,14 +500,20 @@ class PersonalCog(commands.Cog):
         embed = discord.Embed(title="⚠️ DISZIPLINARMASSNAHME | DEGRADIERUNG", color=discord.Color.from_rgb(231, 76, 60))
         embed.set_author(name="Dienstliche Bekanntmachung • Disziplinarbeschluss", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
         
-        # HIER: Dienstnummer entfernt
         inhalt = (
             f"📋 **Stammdaten des Beamten**\n• **Name:** <@{mitarbeiter.id}>\n• **Ebene:** `{ebene}`\n\n"
             f"📉 **Dienstgradänderung**\n• **Alter Dienstgrad:** {alter_rang.mention}\n• **Neuer Dienstgrad:** {neuer_rang.mention}\n\n"
             f"📜 **Disziplinarischer Grund**\n*{grund}*\n\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n\n⚙️ **Automatische Protokollierung**\n{rollen_status}"
         )
         embed.add_field(name="​", value=inhalt, inline=False)
-        embed.add_field(name="🖋️ Autorisierte Unterschrift", value=f"<@{interaction.user.id}>\n*Disziplinarausschuss PPD*", inline=True)
+        
+        unterschriften = f"<@{interaction.user.id}>\n*Disziplinarausschuss PPD*"
+        if mitunterschrift_1:
+            unterschriften += f"\n<@{mitunterschrift_1.id}>"
+        if mitunterschrift_2:
+            unterschriften += f"\n<@{mitunterschrift_2.id}>"
+            
+        embed.add_field(name="🖋️ Autorisierte Unterschrift", value=unterschriften, inline=True)
         embed.add_field(name="📅 Ausstellungsdatum", value=f"`{interaction.created_at.strftime('%d.%m.%Y - %H:%M')} Uhr`", inline=True)
         embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
         embed.set_footer(text="🇩🇪 Geprüftes Dokument • PPD Bundeskartei", icon_url=self.bot.user.display_avatar.url)
@@ -479,9 +521,17 @@ class PersonalCog(commands.Cog):
         await interaction.followup.send(content=f"<@{mitarbeiter.id}>", embed=embed)
 
     @app_commands.command(name="kündigung", description="Entlasse einen Mitarbeiter und entziehe ihm seine Dienstrolle.")
-    @app_commands.checks.has_permissions(manage_roles=True)
+    @has_allowed_role()
     @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
-    async def kuendigung(self, interaction: discord.Interaction, mitarbeiter: discord.Member, letzter_rang: discord.Role, grund: str):
+    async def kuendigung(
+        self, 
+        interaction: discord.Interaction, 
+        mitarbeiter: discord.Member, 
+        letzter_rang: discord.Role, 
+        grund: str,
+        mitunterschrift_1: discord.Member = None,
+        mitunterschrift_2: discord.Member = None
+    ):
         await interaction.response.defer()
         lc = self.get_listen_cog()
         user_id = str(mitarbeiter.id)
@@ -504,7 +554,14 @@ class PersonalCog(commands.Cog):
                 f"📜 **Offizielle Begründung**\n*{grund}*\n\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n\n⚙️ **Automatische Protokollierung**\n{rollen_status}"
             )
             embed.add_field(name="​", value=inhalt, inline=False)
-            embed.add_field(name="🖋️ Autorisierte Unterschrift", value=f"<@{interaction.user.id}>\n*Behördenleitung PPD*", inline=True)
+            
+            unterschriften = f"<@{interaction.user.id}>\n*Behördenleitung PPD*"
+            if mitunterschrift_1:
+                unterschriften += f"\n<@{mitunterschrift_1.id}>"
+            if mitunterschrift_2:
+                unterschriften += f"\n<@{mitunterschrift_2.id}>"
+                
+            embed.add_field(name="🖋️ Autorisierte Unterschrift", value=unterschriften, inline=True)
             embed.add_field(name="📅 Ausstellungsdatum", value=f"`{interaction.created_at.strftime('%d.%m.%Y - %H:%M')} Uhr`", inline=True)
             embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
             embed.set_footer(text="Geschlossene Akte • PPD Archiv", icon_url=self.bot.user.display_avatar.url)
@@ -514,9 +571,17 @@ class PersonalCog(commands.Cog):
             await interaction.followup.send("Mitarbeiter nicht in der Liste gefunden.", ephemeral=True)
 
     @app_commands.command(name="abteilungs-betritt", description="Füge einen Mitarbeiter einer Sonderabteilung hinzu.")
-    @app_commands.checks.has_permissions(manage_roles=True)
+    @has_allowed_role()
     @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
-    async def abt_betritt(self, interaction: discord.Interaction, mitarbeiter: discord.Member, abteilung: str, grund: str = "Zulassungsverfahren bestanden"):
+    async def abt_betritt(
+        self, 
+        interaction: discord.Interaction, 
+        mitarbeiter: discord.Member, 
+        abteilung: str, 
+        grund: str = "Zulassungsverfahren bestanden",
+        mitunterschrift_1: discord.Member = None,
+        mitunterschrift_2: discord.Member = None
+    ):
         await interaction.response.defer()
         lc = self.get_listen_cog()
         user_id = str(mitarbeiter.id)
@@ -530,7 +595,14 @@ class PersonalCog(commands.Cog):
             
             inhalt = f"📋 **Stammdaten des Beamten**\n• **Name:** <@{mitarbeiter.id}>\n• **Zugewiesene Division:** `{abteilung}`\n\n📜 **Qualifikationsgrund**\n*{grund}*"
             embed.add_field(name="​", value=inhalt, inline=False)
-            embed.add_field(name="🖋️ Unterschrift Direktion", value=f"<@{interaction.user.id}>\n*Kommandantur*", inline=True)
+            
+            unterschriften = f"<@{interaction.user.id}>\n*Kommandantur*"
+            if mitunterschrift_1:
+                unterschriften += f"\n<@{mitunterschrift_1.id}>"
+            if mitunterschrift_2:
+                unterschriften += f"\n<@{mitunterschrift_2.id}>"
+                
+            embed.add_field(name="🖋️ Unterschrift Direktion", value=unterschriften, inline=True)
             embed.add_field(name="📅 Datum", value=f"`{interaction.created_at.strftime('%d.%m.%Y')}`", inline=True)
             embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
             embed.set_footer(text="Sondereinheiten • PPD Taktikakte", icon_url=self.bot.user.display_avatar.url)
@@ -540,9 +612,16 @@ class PersonalCog(commands.Cog):
             await interaction.followup.send("Der Mitarbeiter muss zuerst im System registriert sein (z.B. über /beförderung).", ephemeral=True)
 
     @app_commands.command(name="abteilungs-austritt", description="Entferne einen Mitarbeiter aus einer Abteilung.")
-    @app_commands.checks.has_permissions(manage_roles=True)
+    @has_allowed_role()
     @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
-    async def abt_austritt(self, interaction: discord.Interaction, mitarbeiter: discord.Member, grund: str = "Freiwillige Niederlegung / Rotation"):
+    async def abt_austritt(
+        self, 
+        interaction: discord.Interaction, 
+        mitarbeiter: discord.Member, 
+        grund: str = "Freiwillige Niederlegung / Rotation",
+        mitunterschrift_1: discord.Member = None,
+        mitunterschrift_2: discord.Member = None
+    ):
         await interaction.response.defer()
         lc = self.get_listen_cog()
         user_id = str(mitarbeiter.id)
@@ -557,7 +636,14 @@ class PersonalCog(commands.Cog):
             
             inhalt = f"📋 **Stammdaten des Beamten**\n• **Name:** <@{mitarbeiter.id}>\n• **Ausgeschieden aus:** `{alt_abt}`\n\n📜 **Grund des Austritts**\n*{grund}*"
             embed.add_field(name="​", value=inhalt, inline=False)
-            embed.add_field(name="🖋️ Unterschrift Direktion", value=f"<@{interaction.user.id}>\n*Kommandantur*", inline=True)
+            
+            unterschriften = f"<@{interaction.user.id}>\n*Kommandantur*"
+            if mitunterschrift_1:
+                unterschriften += f"\n<@{mitunterschrift_1.id}>"
+            if mitunterschrift_2:
+                unterschriften += f"\n<@{mitunterschrift_2.id}>"
+                
+            embed.add_field(name="🖋️ Unterschrift Direktion", value=unterschriften, inline=True)
             embed.add_field(name="📅 Datum", value=f"`{interaction.created_at.strftime('%d.%m.%Y')}`", inline=True)
             embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
             embed.set_footer(text="Sondereinheiten • PPD Taktikakte", icon_url=self.bot.user.display_avatar.url)
@@ -567,7 +653,7 @@ class PersonalCog(commands.Cog):
             await interaction.followup.send("Mitarbeiter hat keine Abteilung oder ist nicht im System.", ephemeral=True)
 
     @app_commands.command(name="weekly-insider", description="Erstellt die wöchentlichen Upranks über interaktive Auswahlmenüs.")
-    @app_commands.checks.has_permissions(manage_roles=True)
+    @has_allowed_role()
     @app_commands.checks.cooldown(1, 60.0, key=lambda i: i.user.id)
     async def weekly_insider(self, interaction: discord.Interaction):
         view = WeeklyInsiderSetupView(interaction.user, self)
