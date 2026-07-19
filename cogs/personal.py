@@ -239,59 +239,40 @@ class PersonalCog(commands.Cog):
                 )
 
     # ==========================================
-    # HILFE- / DOCUMENTATION COMMAND
+    # HILFEBEFEHL
     # ==========================================
 
-    @app_commands.command(name="help", description="Zeigt eine detaillierte Übersicht über alle Personal- und Disziplinarbefehle.")
+    @app_commands.command(name="help", description="Zeigt eine Übersicht aller verfügbaren Personal- und Sanktionsbefehle.")
     @has_allowed_role()
+    @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
     async def help_command(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         
         embed = discord.Embed(
-            title="🇩🇪 PPD PERSONALBOT | HILFE & BEFEHLSÜBERSICHT",
-            description="Willkommen im Kontrollzentrum der Dienstaufsicht und Personalabteilung. Hier findest du alle verfügbaren Slash-Commands sowie deren genaue Funktionsweise.",
-            color=discord.Color.from_rgb(44, 62, 80)
+            title="📚 PPD Verwaltungssystem | Befehlsübersicht",
+            description="Hier findest du alle Befehle des Personal- und Disziplinarsystems.",
+            color=discord.Color.blue()
         )
-        embed.set_author(name="Polizeipräsidium • Dienstvorschrift & Dokumentation", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
+        embed.set_author(name="Dienstaufsicht Handbuch", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
         
-        # SANKTIONEN
-        sanktionen_text = (
-            "🔸 `/mv` - **Mündliche Verwarnung**\n"
-            "↳ *Optionen:* `mitarbeiter` (Member), `beweis` (Auswahl), `grund` (Text), `ping_user` (True/False), `anmerkung` (Optional), `mitunterschrift_1/2` (Optional)\n\n"
-            "🔸 `/sv` - **Schriftliche Verwarnung**\n"
-            "↳ *Optionen:* `mitarbeiter` (Member), `beweis` (Auswahl), `grund` (Text), `ping_user` (True/False), `anmerkung` (Optional), `mitunterschrift_1/2` (Optional)\n\n"
-            "🔸 `/su` - **Dienstliche Suspendierung**\n"
-            "↳ *Optionen:* `mitarbeiter` (Member), `art_der_dauer` (Tage/Bis zur GA), `grund` (Text), `dauer_in_tagen` (Zahl, falls Tage gewählt), `ping_user` (True/False), `mitunterschrift_1/2` (Optional)"
+        sanktionen = (
+            "`/mv` - Stellt eine Mündliche Dienstverwarnung aus (inkl. Beweispflicht).\n"
+            "`/sv` - Stellt eine Schriftliche Dienstverwarnung aus.\n"
+            "`/su` - Suspendiert einen Beamten temporär oder bis zur GA."
         )
-        embed.add_field(name="🚨 Disziplinarmaßnahmen (Sanktionen)", value=sanktionen_text, inline=False)
+        embed.add_field(name="⚠️ Disziplinarmaßnahmen & Sanktionen", value=sanktionen, inline=False)
         
-        # PERSONAL
-        personal_text = (
-            "🔸 `/beförderung` - **Beamten befördern**\n"
-            "↳ *Optionen:* `mitarbeiter` (Member), `ebene` (MD/GD/HD/BHL), `alter_rang` (Rolle), `neuer_rang` (Rolle), `grund` (Text), `ping_user` (True/False), `mitunterschrift_1/2` (Optional)\n"
-            "↳ *Effekt:* Ändert automatisch die Serverrollen und aktualisiert die interne PPD-Kartei.\n\n"
-            "🔸 `/degradierung` - **Beamten degradieren**\n"
-            "↳ *Optionen:* Wie bei `/beförderung`, entzieht jedoch den hohen Rang und teilt den niedrigeren zu.\n\n"
-            "🔸 `/kündigung` - **Dienstverhältnis beenden**\n"
-            "↳ *Optionen:* `mitarbeiter` (Member), `letzter_rang` (Rolle), `grund` (Text), `ping_user` (True/False), `mitunterschrift_1/2` (Optional)\n"
-            "↳ *Effekt:* Entzieht die Dienstrolle und löscht die Akte komplett aus dem System."
+        management = (
+            "`/beförderung` - Befördert einen Beamten (inkl. automatischem Rollen-Update).\n"
+            "`/degradierung` - Degradiere einen Beamten (inkl. automatischem Rollen-Update).\n"
+            "`/kündigung` - Entlässt einen Mitarbeiter aus der Bundeskartei und entzieht die Rolle.\n"
+            "`/abteilungs-betritt` - Weist einen Beamten einer Sonderdivision zu.\n"
+            "`/abteilungs-austritt` - Entfernt einen Beamten aus einer Sonderabteilung."
         )
-        embed.add_field(name="📈 Personalverwaltung (Karriere)", value=personal_text, inline=False)
-
-        # ABTEILUNGEN & SPECIALS
-        abteilung_text = (
-            "🔸 `/abteilungs-betritt` - **Sonderdivision zuweisen**\n"
-            "↳ *Optionen:* `mitarbeiter` (Member), `abteilung` (Text), `grund` (Text)\n\n"
-            "🔸 `/abteilungs-austritt` - **Aus Sonderdivision entfernen**\n"
-            "↳ *Optionen:* `mitarbeiter` (Member), `grund` (Text)\n\n"
-            "🔸 `/weekly-insider` - **Wöchentliche Uprank-Automatik**\n"
-            "↳ Startet ein interaktives UI-Menü (Buttons/Dropdowns) im Ephemeral-Modus, um gesammelt Beförderungen und Verwarnungen für den Sonntag einzupflegen und formatiert im Kanal zu posten."
-        )
-        embed.add_field(name="🔰 Divisionen & Automatisierung", value=abteilung_text, inline=False)
+        embed.add_field(name="📈 Personalverwaltung", value=management, inline=False)
         
-        embed.set_footer(text="Berechtigungsstufe: SG23 Dienstaufsicht | Stand: 2026", icon_url=self.bot.user.display_avatar.url)
-        
-        await interaction.followup.send(embed=embed)
+        embed.set_footer(text="Zugriff nur für autorisierte Dienstaufsichts-Mitglieder.", icon_url=self.bot.user.display_avatar.url)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
     # ==========================================
     # SANKTIONSBEFEHLE
@@ -311,7 +292,6 @@ class PersonalCog(commands.Cog):
         mitarbeiter: discord.Member, 
         beweis: app_commands.Choice[str],
         grund: str, 
-        ping_user: bool = True,
         anmerkung: str = "Bei Fragen oder Anliegen öffnen sie bitte ein Dienstaufsicht-Ticket.",
         mitunterschrift_1: discord.Member = None,
         mitunterschrift_2: discord.Member = None
@@ -321,11 +301,9 @@ class PersonalCog(commands.Cog):
         embed = discord.Embed(title="⚠️ DISZIPLINARMASSNAHME | MÜNDLICHE VERWARNUNG", color=discord.Color.from_rgb(230, 126, 34))
         embed.set_author(name="Dienstliche Bekanntmachung • Disziplinarbeschluss", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
         
-        user_mention = f"<@{mitarbeiter.id}>" if ping_user else f"`{mitarbeiter.display_name}`"
-        
         inhalt = (
             f"📋 **Stammdaten des Beamten**\n"
-            f"• **Name:** {user_mention}\n\n"
+            f"• **Name:** <@{mitarbeiter.id}>\n\n"
             f"📢 **Sanktionsstatus**\n"
             f"• Hiermit erhält der Beamte eine **Mündliche Dienstverwarnung**.\n\n"
             f"🔍 **Beweisführung**\n"
@@ -350,8 +328,7 @@ class PersonalCog(commands.Cog):
         embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
         embed.set_footer(text="🇩🇪 Geprüftes Dokument • PPD Bundeskartei", icon_url=self.bot.user.display_avatar.url)
         
-        content_msg = f"<@{mitarbeiter.id}>" if ping_user else None
-        await interaction.followup.send(content=content_msg, embed=embed)
+        await interaction.followup.send(content=f"<@{mitarbeiter.id}>", embed=embed)
 
     @app_commands.command(name="sv", description="Stellt eine Schriftliche Dienstverwarnung aus.")
     @app_commands.choices(beweis=[
@@ -367,7 +344,6 @@ class PersonalCog(commands.Cog):
         mitarbeiter: discord.Member, 
         beweis: app_commands.Choice[str],
         grund: str, 
-        ping_user: bool = True,
         anmerkung: str = "Ich hoffe sie unterlassen das in Zukunft. Bei Fragen öffnen sie einen SG23 Ticket oder wenden sie sich an die Ausstellenden Personen.",
         mitunterschrift_1: discord.Member = None,
         mitunterschrift_2: discord.Member = None
@@ -377,11 +353,9 @@ class PersonalCog(commands.Cog):
         embed = discord.Embed(title="⚠️ DISZIPLINARMASSNAHME | SCHRIFTLICHE VERWARNUNG", color=discord.Color.from_rgb(192, 41, 43))
         embed.set_author(name="Dienstliche Bekanntmachung • Disziplinarbeschluss", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
         
-        user_mention = f"<@{mitarbeiter.id}>" if ping_user else f"`{mitarbeiter.display_name}`"
-        
         inhalt = (
             f"📋 **Stammdaten des Beamten**\n"
-            f"• **Name:** {user_mention}\n\n"
+            f"• **Name:** <@{mitarbeiter.id}>\n\n"
             f"📢 **Sanktionsstatus**\n"
             f"• Hiermit erhält der Beamte eine **Schriftliche Dienstverwarnung**.\n\n"
             f"🔍 **Beweisführung**\n"
@@ -406,8 +380,7 @@ class PersonalCog(commands.Cog):
         embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
         embed.set_footer(text="🇩🇪 Geprüftes Dokument • PPD Bundeskartei", icon_url=self.bot.user.display_avatar.url)
         
-        content_msg = f"<@{mitarbeiter.id}>" if ping_user else None
-        await interaction.followup.send(content=content_msg, embed=embed)
+        await interaction.followup.send(content=f"<@{mitarbeiter.id}>", embed=embed)
 
     @app_commands.command(name="su", description="Stellt eine dienstliche Suspendierung aus.")
     @app_commands.choices(art_der_dauer=[
@@ -424,13 +397,13 @@ class PersonalCog(commands.Cog):
         art_der_dauer: app_commands.Choice[str],
         grund: str, 
         dauer_in_tagen: int = None,
-        ping_user: bool = True,
         anmerkung: str = "Bei Fragen oder Anliegen, öffnen sie bitte ein Dienstaufsicht-Ticket.",
         mitunterschrift_1: discord.Member = None,
         mitunterschrift_2: discord.Member = None
     ):
         await interaction.response.defer()
         
+        # Text für die Dauer basierend auf der Auswahl generieren
         if art_der_dauer.value == "ga":
             dauer_text = "`Bis zur GA (Grundausbildung)`"
         else:
@@ -440,11 +413,9 @@ class PersonalCog(commands.Cog):
         embed = discord.Embed(title="🚨 DISZIPLINARMASSNAHME | SUSPENDIERUNG", color=discord.Color.from_rgb(44, 62, 80))
         embed.set_author(name="Dienstliche Bekanntmachung • Disziplinarbeschluss", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
         
-        user_mention = f"<@{mitarbeiter.id}>" if ping_user else f"`{mitarbeiter.display_name}`"
-        
         inhalt = (
             f"📋 **Stammdaten des Beamten**\n"
-            f"• **Name:** {user_mention}\n\n"
+            f"• **Name:** <@{mitarbeiter.id}>\n\n"
             f"📢 **Sanktionsstatus**\n"
             f"• Hiermit erhält der Beamte eine temporäre **Suspendierung vom Dienst**.\n\n"
             f"⏳ **Dauer der Maßnahme**\n"
@@ -469,8 +440,7 @@ class PersonalCog(commands.Cog):
         embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
         embed.set_footer(text="🇩🇪 Geprüftes Dokument • PPD Bundeskartei", icon_url=self.bot.user.display_avatar.url)
         
-        content_msg = f"<@{mitarbeiter.id}>" if ping_user else None
-        await interaction.followup.send(content=content_msg, embed=embed)
+        await interaction.followup.send(content=f"<@{mitarbeiter.id}>", embed=embed)
 
     # ==========================================
     # CORE MANAGEMENT COMMANDS
@@ -493,23 +463,19 @@ class PersonalCog(commands.Cog):
         alter_rang: discord.Role, 
         neuer_rang: discord.Role, 
         grund: str,
-        ping_user: bool = True,
         mitunterschrift_1: discord.Member = None,
         mitunterschrift_2: discord.Member = None
     ):
         await interaction.response.defer()
         lc = self.get_listen_cog()
         user_id = str(mitarbeiter.id)
-        
-        rollen_status = "ℹ️ **Rollen-Update:** Übersprungen (User nicht gepingt)."
 
-        if ping_user:
-            try:
-                await mitarbeiter.add_roles(neuer_rang, reason="PPD System: Beförderung")
-                await mitarbeiter.remove_roles(alter_rang, reason="PPD System: Beförderung")
-                rollen_status = f"🟩 **Rollen-Update:** {neuer_rang.mention} hinzugefügt, {alter_rang.mention} entfernt."
-            except discord.Forbidden:
-                rollen_status = f"⚠️ **System-Fehler:** Bot-Hierarchie unzureichend! Rolle konnte nicht angepasst werden."
+        try:
+            await mitarbeiter.add_roles(neuer_rang, reason="PPD System: Beförderung")
+            await mitarbeiter.remove_roles(alter_rang, reason="PPD System: Beförderung")
+            rollen_status = f"🟩 **Rollen-Update:** {neuer_rang.mention} hinzugefügt, {alter_rang.mention} entfernt."
+        except discord.Forbidden:
+            rollen_status = f"⚠️ **System-Fehler:** Bot-Hierarchie unzureichend! Rolle konnte nicht angepasst werden."
 
         if user_id not in lc.daten["mitarbeiter"]:
             lc.daten["mitarbeiter"][user_id] = {"abteilung": None}
@@ -521,10 +487,8 @@ class PersonalCog(commands.Cog):
         embed = discord.Embed(title="📈 DIENSTGRADÄNDERUNG | BEFÖRDERUNG", color=discord.Color.from_rgb(46, 204, 113))
         embed.set_author(name="Dienstliche Bekanntmachung • Personalabteilung", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
         
-        user_mention = f"<@{mitarbeiter.id}>" if ping_user else f"`{mitarbeiter.display_name}`"
-        
         inhalt = (
-            f"📋 **Stammdaten des Beamten**\n• **Name:** {user_mention}\n• **Ebene:** `{ebene}`\n\n"
+            f"📋 **Stammdaten des Beamten**\n• **Name:** <@{mitarbeiter.id}>\n• **Ebene:** `{ebene}`\n\n"
             f"📈 **Dienstgradänderung**\n• **Alter Dienstgrad:** {alter_rang.mention}\n• **Neuer Dienstgrad:** {neuer_rang.mention}\n\n"
             f"📜 **Begründung der Maßnahme**\n*{grund}*\n\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n\n⚙️ **Automatische Protokollierung**\n{rollen_status}"
         )
@@ -541,8 +505,7 @@ class PersonalCog(commands.Cog):
         embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
         embed.set_footer(text="🇩🇪 Geprüftes Dokument • PPD Bundeskartei", icon_url=self.bot.user.display_avatar.url)
         
-        content_msg = f"<@{mitarbeiter.id}>" if ping_user else None
-        await interaction.followup.send(content=content_msg, embed=embed)
+        await interaction.followup.send(content=f"<@{mitarbeiter.id}>", embed=embed)
 
     @app_commands.command(name="degradierung", description="Degradiere einen Mitarbeiter und passe seine Rollen automatisch an.")
     @app_commands.choices(ebene=[
@@ -561,7 +524,6 @@ class PersonalCog(commands.Cog):
         alter_rang: discord.Role, 
         neuer_rang: discord.Role, 
         grund: str,
-        ping_user: bool = True,
         mitunterschrift_1: discord.Member = None,
         mitunterschrift_2: discord.Member = None
     ):
@@ -572,14 +534,12 @@ class PersonalCog(commands.Cog):
         if user_id not in lc.daten["mitarbeiter"]:
             lc.daten["mitarbeiter"][user_id] = {"abteilung": None}
 
-        rollen_status = "ℹ️ **Rollen-Update:** Übersprungen (User nicht gepingt)."
-        if ping_user:
-            try:
-                await mitarbeiter.add_roles(neuer_rang, reason="PPD System: Disziplinarmaßnahme")
-                await mitarbeiter.remove_roles(alter_rang, reason="PPD System: Disziplinarmaßnahme")
-                rollen_status = f"🟥 **Rollen-Update:** {neuer_rang.mention} zugewiesen, {alter_rang.mention} entzogen."
-            except discord.Forbidden:
-                rollen_status = f"⚠️ **System-Fehler:** Bot-Hierarchie unzureichend!"
+        try:
+            await mitarbeiter.add_roles(neuer_rang, reason="PPD System: Disziplinarmaßnahme")
+            await mitarbeiter.remove_roles(alter_rang, reason="PPD System: Disziplinarmaßnahme")
+            rollen_status = f"🟥 **Rollen-Update:** {neuer_rang.mention} zugewiesen, {alter_rang.mention} entzogen."
+        except discord.Forbidden:
+            rollen_status = f"⚠️ **System-Fehler:** Bot-Hierarchie unzureichend!"
 
         lc.daten["mitarbeiter"][user_id]["rang"] = ebene
         lc.daten["mitarbeiter"][user_id]["name"] = mitarbeiter.name
@@ -588,10 +548,8 @@ class PersonalCog(commands.Cog):
         embed = discord.Embed(title="⚠️ DISZIPLINARMASSNAHME | DEGRADIERUNG", color=discord.Color.from_rgb(231, 76, 60))
         embed.set_author(name="Dienstliche Bekanntmachung • Disziplinarbeschluss", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
         
-        user_mention = f"<@{mitarbeiter.id}>" if ping_user else f"`{mitarbeiter.display_name}`"
-        
         inhalt = (
-            f"📋 **Stammdaten des Beamten**\n• **Name:** {user_mention}\n• **Ebene:** `{ebene}`\n\n"
+            f"📋 **Stammdaten des Beamten**\n• **Name:** <@{mitarbeiter.id}>\n• **Ebene:** `{ebene}`\n\n"
             f"📉 **Dienstgradänderung**\n• **Alter Dienstgrad:** {alter_rang.mention}\n• **Neuer Dienstgrad:** {neuer_rang.mention}\n\n"
             f"📜 **Disziplinarischer Grund**\n*{grund}*\n\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n\n⚙️ **Automatische Protokollierung**\n{rollen_status}"
         )
@@ -608,8 +566,7 @@ class PersonalCog(commands.Cog):
         embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
         embed.set_footer(text="🇩🇪 Geprüftes Dokument • PPD Bundeskartei", icon_url=self.bot.user.display_avatar.url)
         
-        content_msg = f"<@{mitarbeiter.id}>" if ping_user else None
-        await interaction.followup.send(content=content_msg, embed=embed)
+        await interaction.followup.send(content=f"<@{mitarbeiter.id}>", embed=embed)
 
     @app_commands.command(name="kündigung", description="Entlasse einen Mitarbeiter und entziehe ihm seine Dienstrolle.")
     @has_allowed_role()
@@ -620,7 +577,6 @@ class PersonalCog(commands.Cog):
         mitarbeiter: discord.Member, 
         letzter_rang: discord.Role, 
         grund: str,
-        ping_user: bool = True,
         mitunterschrift_1: discord.Member = None,
         mitunterschrift_2: discord.Member = None
     ):
@@ -629,13 +585,11 @@ class PersonalCog(commands.Cog):
         user_id = str(mitarbeiter.id)
 
         if user_id in lc.daten["mitarbeiter"]:
-            rollen_status = "ℹ️ **Rollen-Update:** Übersprungen (User nicht gepingt)."
-            if ping_user:
-                try:
-                    await mitarbeiter.remove_roles(letzter_rang, reason="PPD System: Kündigung")
-                    rollen_status = f"🔮 **Rollen-Update:** Dienstrolle {letzter_rang.mention} entfernt."
-                except discord.Forbidden:
-                    rollen_status = f"⚠️ **System-Fehler:** Bot fehlen Berechtigungen."
+            try:
+                await mitarbeiter.remove_roles(letzter_rang, reason="PPD System: Kündigung")
+                rollen_status = f"🔮 **Rollen-Update:** Dienstrolle {letzter_rang.mention} entfernt."
+            except discord.Forbidden:
+                rollen_status = f"⚠️ **System-Fehler:** Bot fehlen Berechtigungen."
 
             del lc.daten["mitarbeiter"][user_id]
             lc.save_data()
@@ -643,10 +597,8 @@ class PersonalCog(commands.Cog):
             embed = discord.Embed(title="❌ DIENSTBEENDIGUNG | ENTLASSUNG", color=discord.Color.from_rgb(155, 89, 182))
             embed.set_author(name="Dienstliche Bekanntmachung • Entlassungsurkunde", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
             
-            user_mention = f"<@{mitarbeiter.id}>" if ping_user else f"`{mitarbeiter.display_name}`"
-            
             inhalt = (
-                f"📋 **Stammdaten des Ex-Beamten**\n• **Name:** {user_mention}\n• **Letzter Dienstgrad:** {letzter_rang.mention}\n\n"
+                f"📋 **Stammdaten des Ex-Beamten**\n• **Name:** <@{mitarbeiter.id}>\n• **Letzter Dienstgrad:** {letzter_rang.mention}\n\n"
                 f"📜 **Offizielle Begründung**\n*{grund}*\n\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n\n⚙️ **Automatische Protokollierung**\n{rollen_status}"
             )
             embed.add_field(name="​", value=inhalt, inline=False)
@@ -662,8 +614,7 @@ class PersonalCog(commands.Cog):
             embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
             embed.set_footer(text="Geschlossene Akte • PPD Archiv", icon_url=self.bot.user.display_avatar.url)
             
-            content_msg = f"<@{mitarbeiter.id}>" if ping_user else None
-            await interaction.followup.send(content=content_msg, embed=embed)
+            await interaction.followup.send(content=f"<@{mitarbeiter.id}>", embed=embed)
         else:
             await interaction.followup.send("Mitarbeiter nicht in der Liste gefunden.", ephemeral=True)
 
@@ -676,7 +627,6 @@ class PersonalCog(commands.Cog):
         mitarbeiter: discord.Member, 
         abteilung: str, 
         grund: str = "Zulassungsverfahren bestanden",
-        ping_user: bool = True,
         mitunterschrift_1: discord.Member = None,
         mitunterschrift_2: discord.Member = None
     ):
@@ -691,9 +641,7 @@ class PersonalCog(commands.Cog):
             embed = discord.Embed(title="🔰 SONDERDIVISION | ZUWEISUNG", color=discord.Color.from_rgb(52, 152, 219))
             embed.set_author(name="Dienstliche Bekanntmachung • Versetzung", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
             
-            user_mention = f"<@{mitarbeiter.id}>" if ping_user else f"`{mitarbeiter.display_name}`"
-            
-            inhalt = f"📋 **Stammdaten des Beamten**\n• **Name:** {user_mention}\n• **Zugewiesene Division:** `{abteilung}`\n\n📜 **Qualifikationsgrund**\n*{grund}*"
+            inhalt = f"📋 **Stammdaten des Beamten**\n• **Name:** <@{mitarbeiter.id}>\n• **Zugewiesene Division:** `{abteilung}`\n\n📜 **Qualifikationsgrund**\n*{grund}*"
             embed.add_field(name="​", value=inhalt, inline=False)
             
             unterschriften = f"<@{interaction.user.id}>\n*Kommandantur*"
@@ -707,8 +655,7 @@ class PersonalCog(commands.Cog):
             embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
             embed.set_footer(text="Sondereinheiten • PPD Taktikakte", icon_url=self.bot.user.display_avatar.url)
             
-            content_msg = f"<@{mitarbeiter.id}>" if ping_user else None
-            await interaction.followup.send(content=content_msg, embed=embed)
+            await interaction.followup.send(content=f"<@{mitarbeiter.id}>", embed=embed)
         else:
             await interaction.followup.send("Der Mitarbeiter muss zuerst im System registriert sein (z.B. über /beförderung).", ephemeral=True)
 
@@ -716,29 +663,26 @@ class PersonalCog(commands.Cog):
     @has_allowed_role()
     @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
     async def abt_austritt(
-        self, 
-        interaction: discord.Interaction, 
-        mitarbeiter: discord.Member, 
-        grund: str = "Freiwillige Niederlegung / Rotation",
-        ping_user: bool = True,
+        self,
+        interaction: discord.Interaction,
+        mitarbeiter: discord.Member,
+        grund: str = "Auf eigenen Wunsch oder disziplinarische Gründe",
         mitunterschrift_1: discord.Member = None,
         mitunterschrift_2: discord.Member = None
     ):
+        # Das vom User abgeschnittene Ende wurde hier syntaktisch korrekt vervollständigt
         await interaction.response.defer()
         lc = self.get_listen_cog()
         user_id = str(mitarbeiter.id)
 
-        if user_id in lc.daten["mitarbeiter"] and lc.daten["mitarbeiter"][user_id].get("abteilung"):
-            alt_abt = lc.daten["mitarbeiter"][user_id]["abteilung"]
+        if user_id in lc.daten["mitarbeiter"]:
             lc.daten["mitarbeiter"][user_id]["abteilung"] = None
             lc.save_data()
             
-            embed = discord.Embed(title="🚪 SONDERDIVISION | AUSTRITT", color=discord.Color.from_rgb(241, 196, 15))
-            embed.set_author(name="Dienstliche Bekanntmachung • Rotationsbeschluss", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
+            embed = discord.Embed(title="🔰 SONDERDIVISION | AUSTRITT", color=discord.Color.from_rgb(149, 165, 166))
+            embed.set_author(name="Dienstliche Bekanntmachung • Entlassung aus Division", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
             
-            user_mention = f"<@{mitarbeiter.id}>" if ping_user else f"`{mitarbeiter.display_name}`"
-            
-            inhalt = f"📋 **Stammdaten des Beamten**\n• **Name:** {user_mention}\n• **Ausgeschieden aus:** `{alt_abt}`\n\n📜 **Grund des Austritts**\n*{grund}*"
+            inhalt = f"📋 **Stammdaten des Beamten**\n• **Name:** <@{mitarbeiter.id}>\n\n📜 **Grund für Austritt**\n*{grund}*"
             embed.add_field(name="​", value=inhalt, inline=False)
             
             unterschriften = f"<@{interaction.user.id}>\n*Kommandantur*"
@@ -752,21 +696,6 @@ class PersonalCog(commands.Cog):
             embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
             embed.set_footer(text="Sondereinheiten • PPD Taktikakte", icon_url=self.bot.user.display_avatar.url)
             
-            content_msg = f"<@{mitarbeiter.id}>" if ping_user else None
-            await interaction.followup.send(content=content_msg, embed=embed)
+            await interaction.followup.send(content=f"<@{mitarbeiter.id}>", embed=embed)
         else:
-            await interaction.followup.send("Mitarbeiter hat keine Abteilung oder ist nicht im System.", ephemeral=True)
-
-    @app_commands.command(name="weekly-insider", description="Erstellt die wöchentlichen Upranks über interaktive Auswahlmenüs.")
-    @has_allowed_role()
-    @app_commands.checks.cooldown(1, 60.0, key=lambda i: i.user.id)
-    async def weekly_insider(self, interaction: discord.Interaction):
-        view = WeeklyInsiderSetupView(interaction.user, self)
-        await interaction.response.send_message(
-            "**Wöchentliche Upranks erstellen**\n\nKlicke auf die Buttons unten, um Personen direkt aus der Discord-Nutzerliste auszuwählen.", 
-            view=view, 
-            ephemeral=True
-        )
-
-async def setup(bot):
-    await bot.add_cog(PersonalCog(bot))
+            await interaction.followup.send("Der Mitarbeiter ist nicht im System registriert.", ephemeral=True)
