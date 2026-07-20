@@ -34,9 +34,10 @@ class HelpPaginator(discord.ui.View):
     def create_embed(self) -> discord.Embed:
         page_data = self.pages[self.current_page]
         
+        # Sauberer Text mit einer echten Trennlinie darunter
         embed = discord.Embed(
             title="📚 PPD Verwaltungssystem | Handbuch",
-            description="Nutze die Buttons unten, um durch die Kategorien zu blättern.\n═" * 15,
+            description="Nutze die Buttons unten, um durch die Kategorien zu blättern.\n" + "═" * 35,
             color=discord.Color.blue()
         )
         embed.set_author(name=f"Kategorie: {page_data['kategorie']}", icon_url=self.guild_icon)
