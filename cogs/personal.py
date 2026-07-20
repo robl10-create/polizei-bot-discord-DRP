@@ -239,42 +239,6 @@ class PersonalCog(commands.Cog):
                 )
 
     # ==========================================
-    # HILFEBEFEHL
-    # ==========================================
-
-    @app_commands.command(name="help", description="Zeigt eine Übersicht aller verfügbaren Personal- und Sanktionsbefehle.")
-    @has_allowed_role()
-    @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
-    async def help_command(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
-        
-        embed = discord.Embed(
-            title="📚 PPD Verwaltungssystem | Befehlsübersicht",
-            description="Hier findest du alle Befehle des Personal- und Disziplinarsystems.",
-            color=discord.Color.blue()
-        )
-        embed.set_author(name="Dienstaufsicht Handbuch", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
-        
-        sanktionen = (
-            "`/mv` - Stellt eine Mündliche Dienstverwarnung aus (inkl. Beweispflicht).\n"
-            "`/sv` - Stellt eine Schriftliche Dienstverwarnung aus.\n"
-            "`/su` - Suspendiert einen Beamten temporär oder bis zur GA."
-        )
-        embed.add_field(name="⚠️ Disziplinarmaßnahmen & Sanktionen", value=sanktionen, inline=False)
-        
-        management = (
-            "`/beförderung` - Befördert einen Beamten (inkl. automatischem Rollen-Update).\n"
-            "`/degradierung` - Degradiere einen Beamten (inkl. automatischem Rollen-Update).\n"
-            "`/kündigung` - Entlässt einen Mitarbeiter aus der Bundeskartei und entzieht die Rolle.\n"
-            "`/abteilungs-betritt` - Weist einen Beamten einer Sonderdivision zu.\n"
-            "`/abteilungs-austritt` - Entfernt einen Beamten aus einer Sonderabteilung."
-        )
-        embed.add_field(name="📈 Personalverwaltung", value=management, inline=False)
-        
-        embed.set_footer(text="Zugriff nur für autorisierte Dienstaufsichts-Mitglieder.", icon_url=self.bot.user.display_avatar.url)
-        await interaction.followup.send(embed=embed, ephemeral=True)
-
-    # ==========================================
     # SANKTIONSBEFEHLE
     # ==========================================
 
@@ -663,26 +627,26 @@ class PersonalCog(commands.Cog):
     @has_allowed_role()
     @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
     async def abt_austritt(
-        self,
-        interaction: discord.Interaction,
-        mitarbeiter: discord.Member,
-        grund: str = "Auf eigenen Wunsch oder disziplinarische Gründe",
+        self, 
+        interaction: discord.Interaction, 
+        mitarbeiter: discord.Member, 
+        grund: str = "Freiwillige Niederlegung / Rotation",
         mitunterschrift_1: discord.Member = None,
         mitunterschrift_2: discord.Member = None
     ):
-        # Das vom User abgeschnittene Ende wurde hier syntaktisch korrekt vervollständigt
         await interaction.response.defer()
         lc = self.get_listen_cog()
         user_id = str(mitarbeiter.id)
 
-        if user_id in lc.daten["mitarbeiter"]:
+        if user_id in lc.daten["mitarbeiter"] and lc.daten["mitarbeiter"][user_id].get("abteilung"):
+            alt_abt = lc.daten["mitarbeiter"][user_id]["abteilung"]
             lc.daten["mitarbeiter"][user_id]["abteilung"] = None
             lc.save_data()
             
-            embed = discord.Embed(title="🔰 SONDERDIVISION | AUSTRITT", color=discord.Color.from_rgb(149, 165, 166))
-            embed.set_author(name="Dienstliche Bekanntmachung • Entlassung aus Division", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
+            embed = discord.Embed(title="🚪 SONDERDIVISION | AUSTRITT", color=discord.Color.from_rgb(241, 196, 15))
+            embed.set_author(name="Dienstliche Bekanntmachung • Rotationsbeschluss", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
             
-            inhalt = f"📋 **Stammdaten des Beamten**\n• **Name:** <@{mitarbeiter.id}>\n\n📜 **Grund für Austritt**\n*{grund}*"
+            inhalt = f"📋 **Stammdaten des Beamten**\n• **Name:** <@{mitarbeiter.id}>\n• **Ausgeschieden aus:** `{alt_abt}`\n\n📜 **Grund des Austritts**\n*{grund}*"
             embed.add_field(name="​", value=inhalt, inline=False)
             
             unterschriften = f"<@{interaction.user.id}>\n*Kommandantur*"
@@ -698,4 +662,18 @@ class PersonalCog(commands.Cog):
             
             await interaction.followup.send(content=f"<@{mitarbeiter.id}>", embed=embed)
         else:
-            await interaction.followup.send("Der Mitarbeiter ist nicht im System registriert.", ephemeral=True)
+            await interaction.followup.send("Mitarbeiter hat keine Abteilung oder ist nicht im System.", ephemeral=True)
+
+    @app_commands.command(name="weekly-insider", description="Erstellt die wöchentlichen Upranks über interaktive Auswahlmenüs.")
+    @has_allowed_role()
+    @app_commands.checks.cooldown(1, 60.0, key=lambda i: i.user.id)
+    async def weekly_insider(self, interaction: discord.Interaction):
+        view = WeeklyInsiderSetupView(interaction.user, self)
+        await interaction.response.send_message(
+            "**Wöchentliche Upranks erstellen**\n\nKlicke auf die Buttons unten, um Personen direkt aus der Discord-Nutzerliste auszuwählen.", 
+            view=view, 
+            ephemeral=True
+        )
+
+async def setup(bot):
+    await bot.add_cog(PersonalCog(bot))
