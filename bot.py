@@ -19,13 +19,24 @@ class RoleplayBot(commands.Bot):
         super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self):
-        # Cogs laden
-        await self.load_extension('cogs.listen')
-        await self.load_extension('cogs.help')
-        await self.load_extension('cogs.sanktionen')
-        await self.load_extension('cogs.verwaltung')
-        await self.load_extension('cogs.abteilungen')
-        await self.load_extension('cogs.dienstnummern')
+        # Liste aller Cogs
+        cogs = [
+            'cogs.listen',
+            'cogs.help',
+            'cogs.sanktionen',
+            'cogs.verwaltung',
+            'cogs.abteilungen',
+            'cogs.dienstnummern'
+        ]
+        
+        for cog in cogs:
+            try:
+                await self.load_extension(cog)
+                print(str(f"✅ {cog} erfolgreich geladen."))
+            except Exception as e:
+                print(str(f"❌ FEHLER beim Laden von {cog}: {e}"))
+                
+        # Hiernach folgt dein normaler Sync-Befehl (falls vorhanden)
         
         # Slash Commands mit Discord synchronisieren
         print("Synchronisiere Commands...")
