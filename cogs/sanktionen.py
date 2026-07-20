@@ -170,7 +170,7 @@ class SanktionenCog(commands.Cog):
         )
         embed.add_field(name="​", value=inhalt, inline=False)
         
-        unterschriften = f"<@{interaction.user.id}>\n*Behördenleitung / Direktion*"
+        unterschriften = f"<@{interaction.user.id}>\n*Disziplinarausschuss PPD*"
         if mitunterschrift_1:
             unterschriften += f"\n<@{mitunterschrift_1.id}>"
         if mitunterschrift_2:
