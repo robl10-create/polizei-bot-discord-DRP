@@ -343,39 +343,37 @@ class VerwaltungCog(commands.Cog):
         lc = self.get_listen_cog()
         user_id = str(mitarbeiter.id)
 
-        if user_id in lc.daten["mitarbeiter"]:
-            try:
-                await mitarbeiter.remove_roles(letzter_rang, reason="PPD System: Kündigung")
-                rollen_status = f"🔮 **Rollen-Update:** Dienstrolle {letzter_rang.mention} entfernt."
-            except discord.Forbidden:
-                rollen_status = f"⚠️ **System-Fehler:** Bot fehlen Berechtigungen."
+        try:
+            await mitarbeiter.remove_roles(letzter_rang, reason="PPD System: Kündigung")
+            rollen_status = f"🔮 **Rollen-Update:** Dienstrolle {letzter_rang.mention} entfernt."
+        except discord.Forbidden:
+            rollen_status = f"⚠️ **System-Fehler:** Bot fehlen Berechtigungen, um die Rolle zu entfernen."
 
+        if user_id in lc.daten["mitarbeiter"]:
             del lc.daten["mitarbeiter"][user_id]
             lc.save_data()
             
-            embed = discord.Embed(title="❌ DIENSTBEENDIGUNG | ENTLASSUNG", color=discord.Color.from_rgb(155, 89, 182))
-            embed.set_author(name="Dienstliche Bekanntmachung • Entlassungsurkunde", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
+        embed = discord.Embed(title="❌ DIENSTBEENDIGUNG | ENTLASSUNG", color=discord.Color.from_rgb(155, 89, 182))
+        embed.set_author(name="Dienstliche Bekanntmachung • Entlassungsurkunde", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
+        
+        inhalt = (
+            f"📋 **Stammdaten des Ex-Beamten**\n• **Name:** <@{mitarbeiter.id}>\n• **Letzter Dienstgrad:** {letzter_rang.mention}\n\n"
+            f"📜 **Offizielle Begründung**\n*{grund}*\n\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n\n⚙️ **Automatische Protokollierung**\n{rollen_status}"
+        )
+        embed.add_field(name="​", value=inhalt, inline=False)
+        
+        unterschriften = f"<@{interaction.user.id}>\n*Behördenleitung PPD*"
+        if mitunterschrift_1:
+            unterschriften += f"\n<@{mitunterschrift_1.id}>"
+        if mitunterschrift_2:
+            unterschriften += f"\n<@{mitunterschrift_2.id}>"
             
-            inhalt = (
-                f"📋 **Stammdaten des Ex-Beamten**\n• **Name:** <@{mitarbeiter.id}>\n• **Letzter Dienstgrad:** {letzter_rang.mention}\n\n"
-                f"📜 **Offizielle Begründung**\n*{grund}*\n\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n\n⚙️ **Automatische Protokollierung**\n{rollen_status}"
-            )
-            embed.add_field(name="​", value=inhalt, inline=False)
-            
-            unterschriften = f"<@{interaction.user.id}>\n*Behördenleitung PPD*"
-            if mitunterschrift_1:
-                unterschriften += f"\n<@{mitunterschrift_1.id}>"
-            if mitunterschrift_2:
-                unterschriften += f"\n<@{mitunterschrift_2.id}>"
-                
-            embed.add_field(name="🖋️ Autorisierte Unterschrift", value=unterschriften, inline=True)
-            embed.add_field(name="📅 Ausstellungsdatum", value=f"`{interaction.created_at.strftime('%d.%m.%Y - %H:%M')} Uhr`", inline=True)
-            embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
-            embed.set_footer(text="Geschlossene Akte • PPD Archiv", icon_url=self.bot.user.display_avatar.url)
-            
-            await interaction.followup.send(content=f"<@{mitarbeiter.id}>", embed=embed)
-        else:
-            await interaction.followup.send("Mitarbeiter nicht in der Liste gefunden.", ephemeral=True)
+        embed.add_field(name="🖋️ Autorisierte Unterschrift", value=unterschriften, inline=True)
+        embed.add_field(name="📅 Ausstellungsdatum", value=f"`{interaction.created_at.strftime('%d.%m.%Y - %H:%M')} Uhr`", inline=True)
+        embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
+        embed.set_footer(text="Geschlossene Akte • PPD Archiv", icon_url=self.bot.user.display_avatar.url)
+        
+        await interaction.followup.send(content=f"<@{mitarbeiter.id}>", embed=embed)
 
     @app_commands.command(name="weekly-insider", description="Erstellt die wöchentlichen Upranks über interaktive Auswahlmenüs.")
     @has_allowed_role()
