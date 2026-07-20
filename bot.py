@@ -25,6 +25,7 @@ class RoleplayBot(commands.Bot):
         await self.load_extension('cogs.sanktionen')
         await self.load_extension('cogs.verwaltung')
         await self.load_extension('cogs.abteilungen')
+        await self.load_extension('cogs.dienstnummern')
         
         # Slash Commands mit Discord synchronisieren
         print("Synchronisiere Commands...")
