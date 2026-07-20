@@ -20,9 +20,11 @@ class RoleplayBot(commands.Bot):
 
     async def setup_hook(self):
         # Cogs laden
-        await self.load_extension('cogs.personal')
         await self.load_extension('cogs.listen')
         await self.load_extension('cogs.help')
+        await self.load_extension('cogs.sanktionen')
+        await self.load_extension('cogs.verwaltung')
+        await self.load_extension('cogs.abteilungen')
         
         # Slash Commands mit Discord synchronisieren
         print("Synchronisiere Commands...")
