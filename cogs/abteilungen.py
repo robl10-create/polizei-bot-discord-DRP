@@ -1,111 +1,127 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-from .listen import ListenCog
+from cogs.listen import ListenCog
 
 ALLOWED_ROLE_ID = 1497905102156206162
 
+# Hier sind alle deine Abteilungen mit den exakten Rollen-IDs verknüpft:
+ABTEILUNGEN = {
+    "SG23_DIENSTAUFSICHT": {
+        "name": "SG23 | Dienstaufsicht",
+        "role_id": 1497905102156206162
+    },
+    "SG23_AZUBI": {
+        "name": "SG23 | Azubi",
+        "role_id": 1527040334981369887
+    },
+    "SG22_AUSBILDUNG": {
+        "name": "SG22 | Aus- und Fortbildung",
+        "role_id": 1497905103397457991
+    },
+    "SG21_PERSONAL": {
+        "name": "SG21 | Personalrecht & Einstellung",
+        "role_id": 1497905104181788762
+    },
+    "SPEZIALEINHEITEN": {
+        "name": "Spezialeinheiten",
+        "role_id": 1460003190656467116
+    }
+}
+
 def has_allowed_role():
     async def predicate(interaction: discord.Interaction) -> bool:
-        if interaction.user.guild_permissions.manage_roles:
+        if interaction.user.guild_permissions.manage_roles or any(role.id == ALLOWED_ROLE_ID for role in interaction.user.roles):
             return True
-        if any(role.id == ALLOWED_ROLE_ID for role in interaction.user.roles):
-            return True
-        await interaction.response.send_message(
-            "🚨 **Zugriff verweigert!** Du benötigst die Rolle **SG23 | Dienstaufsicht** oder die Berechtigung 'Rollen verwalten', um diesen Befehl zu nutzen.", 
-            ephemeral=True
-        )
+        await interaction.response.send_message("🚨 **Zugriff verweigert!** Du hast keine Berechtigung für diesen Befehl.", ephemeral=True)
         return False
     return app_commands.check(predicate)
 
-class AbteilungenCog(commands.Cog):
+class Abteilungen(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
     def get_listen_cog(self) -> ListenCog:
         return self.bot.get_cog("ListenCog")
 
-    @app_commands.command(name="abteilungs-betritt", description="Füge einen Mitarbeiter einer Sonderabteilung hinzu.")
+    # ==========================================
+    # ABTEILUNGS-EINTRITT
+    # ==========================================
+    @app_commands.command(name="abteilungs-eintritt", description="Weist einem Mitarbeiter eine Abteilung zu und vergibt die Rolle.")
     @has_allowed_role()
-    @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
-    async def abt_betritt(
-        self, 
-        interaction: discord.Interaction, 
-        mitarbeiter: discord.Member, 
-        abteilung: str, 
-        grund: str = "Zulassungsverfahren bestanden",
-        mitunterschrift_1: discord.Member = None,
-        mitunterschrift_2: discord.Member = None
-    ):
-        await interaction.response.defer()
+    @app_commands.choices(abteilung=[
+        app_commands.Choice(name="SG23 | Dienstaufsicht", value="SG23_DIENSTAUFSICHT"),
+        app_commands.Choice(name="SG23 | Azubi", value="SG23_AZUBI"),
+        app_commands.Choice(name="SG22 | Aus- und Fortbildung", value="SG22_AUSBILDUNG"),
+        app_commands.Choice(name="SG21 | Personalrecht & Einstellung", value="SG21_PERSONAL"),
+        app_commands.Choice(name="Spezialeinheiten", value="SPEZIALEINHEITEN")
+    ])
+    async def abteilung_eintritt(self, interaction: discord.Interaction, mitarbeiter: discord.Member, abteilung: str):
+        await interaction.response.defer(ephemeral=True)
+        
+        abt_info = ABTEILUNGEN.get(abteilung)
+        if not abt_info:
+            await interaction.followup.send("❌ Ungültige Abteilung ausgewählt.", ephemeral=True)
+            return
+
+        role = interaction.guild.get_role(abt_info["role_id"])
+        if role:
+            try:
+                await mitarbeiter.add_roles(role)
+            except discord.Forbidden:
+                await interaction.followup.send("⚠️ Konnte Rolle nicht vergeben (Fehlende Bot-Rechte).", ephemeral=True)
+                return
+
+        # In JSON speichern
         lc = self.get_listen_cog()
-        user_id = str(mitarbeiter.id)
+        u_id = str(mitarbeiter.id)
+        
+        if u_id not in lc.daten["mitarbeiter"]:
+            lc.daten["mitarbeiter"][u_id] = {"dienstgrad": "Unbekannt", "sanktionen": []}
+            
+        lc.daten["mitarbeiter"][u_id]["abteilung"] = abt_info["name"]
+        lc.save_data()
 
-        if user_id in lc.daten["mitarbeiter"]:
-            lc.daten["mitarbeiter"][user_id]["abteilung"] = abteilung
-            lc.save_data()
-            
-            embed = discord.Embed(title="🔰 SONDERDIVISION | ZUWEISUNG", color=discord.Color.from_rgb(52, 152, 219))
-            embed.set_author(name="Dienstliche Bekanntmachung • Versetzung", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
-            
-            inhalt = f"📋 **Stammdaten des Beamten**\n• **Name:** <@{mitarbeiter.id}>\n• **Zugewiesene Division:** `{abteilung}`\n\n📜 **Qualifikationsgrund**\n*{grund}*"
-            embed.add_field(name="​", value=inhalt, inline=False)
-            
-            unterschriften = f"<@{interaction.user.id}>\n*Kommandantur*"
-            if mitunterschrift_1:
-                unterschriften += f"\n<@{mitunterschrift_1.id}>"
-            if mitunterschrift_2:
-                unterschriften += f"\n<@{mitunterschrift_2.id}>"
-                
-            embed.add_field(name="🖋️ Unterschrift Direktion", value=unterschriften, inline=True)
-            embed.add_field(name="📅 Datum", value=f"`{interaction.created_at.strftime('%d.%m.%Y')}`", inline=True)
-            embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
-            embed.set_footer(text="Sondereinheiten • PPD Taktikakte", icon_url=self.bot.user.display_avatar.url)
-            
-            await interaction.followup.send(content=f"<@{mitarbeiter.id}>", embed=embed)
-        else:
-            await interaction.followup.send("Der Mitarbeiter muss zuerst im System registriert sein (z.B. über /beförderung).", ephemeral=True)
+        await interaction.followup.send(f"✅ <@{mitarbeiter.id}> wurde erfolgreich der Abteilung **{abt_info['name']}** zugewiesen und hat die Rolle erhalten.", ephemeral=True)
 
-    @app_commands.command(name="abteilungs-austritt", description="Entferne einen Mitarbeiter aus einer Abteilung.")
+    # ==========================================
+    # ABTEILUNGS-AUSTRITT (BEHEBT DEN FEHLER VOM BILD)
+    # ==========================================
+    @app_commands.command(name="abteilungs-austritt", description="Entfernt einen Mitarbeiter aus seiner Abteilung.")
     @has_allowed_role()
-    @app_commands.checks.cooldown(1, 10.0, key=lambda i: i.user.id)
-    async def abt_austritt(
-        self, 
-        interaction: discord.Interaction, 
-        mitarbeiter: discord.Member, 
-        grund: str = "Freiwillige Niederlegung / Rotation",
-        mitunterschrift_1: discord.Member = None,
-        mitunterschrift_2: discord.Member = None
-    ):
-        await interaction.response.defer()
+    async def abteilung_austritt(self, interaction: discord.Interaction, mitarbeiter: discord.Member):
+        await interaction.response.defer(ephemeral=True)
         lc = self.get_listen_cog()
-        user_id = str(mitarbeiter.id)
+        u_id = str(mitarbeiter.id)
 
-        if user_id in lc.daten["mitarbeiter"] and lc.daten["mitarbeiter"][user_id].get("abteilung"):
-            alt_abt = lc.daten["mitarbeiter"][user_id]["abteilung"]
-            lc.daten["mitarbeiter"][user_id]["abteilung"] = None
+        # 1. Prüfen, welche Abteilungs-Rollen der User aktuell hat und entfernen
+        entfernte_rollen = []
+        for key, abt_info in ABTEILUNGEN.items():
+            role = interaction.guild.get_role(abt_info["role_id"])
+            if role and role in mitarbeiter.roles:
+                try:
+                    await mitarbeiter.remove_roles(role)
+                    entfernte_rollen.append(abt_info["name"])
+                except discord.Forbidden:
+                    pass
+
+        # 2. Aus JSON austragen
+        hat_json_eintrag = False
+        if u_id in lc.daten["mitarbeiter"] and "abteilung" in lc.daten["mitarbeiter"][u_id]:
+            del lc.daten["mitarbeiter"][u_id]["abteilung"]
             lc.save_data()
+            hat_json_eintrag = True
+
+        # Wenn er weder Rollen noch einen JSON-Eintrag hatte:
+        if not entfernte_rollen and not hat_json_eintrag:
+            await interaction.followup.send("⚠️ Dieser Mitarbeiter besitzt keine der registrierten Abteilungs-Rollen und war in keiner Abteilung eingetragen.", ephemeral=True)
+            return
+
+        msg = f"✅ <@{mitarbeiter.id}> wurde aus der Abteilung entfernt."
+        if entfernte_rollen:
+            msg += f"\n➔ Rolle(n) entfernt: **{', '.join(entfernte_rollen)}**"
             
-            embed = discord.Embed(title="🚪 SONDERDIVISION | AUSTRITT", color=discord.Color.from_rgb(241, 196, 15))
-            embed.set_author(name="Dienstliche Bekanntmachung • Rotationsbeschluss", icon_url=interaction.guild.icon.url if interaction.guild.icon else None)
-            
-            inhalt = f"📋 **Stammdaten des Beamten**\n• **Name:** <@{mitarbeiter.id}>\n• **Ausgeschieden aus:** `{alt_abt}`\n\n📜 **Grund des Austritts**\n*{grund}*"
-            embed.add_field(name="​", value=inhalt, inline=False)
-            
-            unterschriften = f"<@{interaction.user.id}>\n*Kommandantur*"
-            if mitunterschrift_1:
-                unterschriften += f"\n<@{mitunterschrift_1.id}>"
-            if mitunterschrift_2:
-                unterschriften += f"\n<@{mitunterschrift_2.id}>"
-                
-            embed.add_field(name="🖋️ Unterschrift Direktion", value=unterschriften, inline=True)
-            embed.add_field(name="📅 Datum", value=f"`{interaction.created_at.strftime('%d.%m.%Y')}`", inline=True)
-            embed.set_thumbnail(url=mitarbeiter.display_avatar.url)
-            embed.set_footer(text="Sondereinheiten • PPD Taktikakte", icon_url=self.bot.user.display_avatar.url)
-            
-            await interaction.followup.send(content=f"<@{mitarbeiter.id}>", embed=embed)
-        else:
-            await interaction.followup.send("Mitarbeiter hat keine Abteilung oder ist nicht im System.", ephemeral=True)
+        await interaction.followup.send(msg, ephemeral=True)
 
 async def setup(bot):
-    await bot.add_cog(AbteilungenCog(bot))
+    await bot.add_cog(Abteilungen(bot))
