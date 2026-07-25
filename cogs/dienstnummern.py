@@ -215,7 +215,7 @@ class Dienstnummern(commands.Cog):
             description="Klicke auf den Button, um deine persönliche Dienstnummer zu generieren.\nDein Nickname wird dabei automatisch angepasst.",
             color=discord.Color.blue()
         )
-        user_embed.set_footer(text="NovaRP")
+        user_embed.set_footer(text="Deutschland Roleplay")
         await channel.send(embed=user_embed, view=DNUserView(self))
         await interaction.followup.send("✅ Beantragungs-Panel wurde gesendet!", ephemeral=True)
 
