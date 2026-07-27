@@ -16,18 +16,18 @@ def has_allowed_role():
     return app_commands.check(predicate)
 
 # ==========================================
-# MODALS & BUTTONS FÜR BENUTZER-EINGABE
+# MODAL FÜR MITGLIEDER (FORMULAR)
 # ==========================================
-class DNModal(discord.ui.Modal, title="Dienstnummer beantragen / eintragen"):
+class DNModal(discord.ui.Modal, title="Dienstnummer eintragen"):
     ebene = discord.ui.TextInput(
         label="Dienstebene (BHL, HD, GD, MD)",
-        placeholder="z.B. GD",
+        placeholder="Gib BHL, HD, GD oder MD ein",
         min_length=2,
         max_length=3,
         required=True
     )
     nummer = discord.ui.TextInput(
-        label="Dienstnummer (Zahl)",
+        label="Dienstnummer (nur die Zahl)",
         placeholder="z.B. 01 oder 15",
         min_length=1,
         max_length=3,
@@ -49,14 +49,16 @@ class DNModal(discord.ui.Modal, title="Dienstnummer beantragen / eintragen"):
         await interaction.response.defer(ephemeral=True)
         
         ebene_val = self.ebene.value.upper().strip()
-        if ebene_val not in ["BHL", "HD", "GD", "MD"]:
+        ebenen_mapping = ["BHL", "HD", "GD", "MD"]
+
+        if ebene_val not in ebenen_mapping:
             await interaction.followup.send("❌ Ungültige Dienstebene! Bitte verwende **BHL**, **HD**, **GD** oder **MD**.", ephemeral=True)
             return
 
         try:
             num_val = int(self.nummer.value.strip())
         except ValueError:
-            await interaction.followup.send("❌ Die Dienstnummer muss eine reine Zahl sein!", ephemeral=True)
+            await interaction.followup.send("❌ Die Dienstnummer muss eine gültige Zahl sein!", ephemeral=True)
             return
 
         u_id = str(interaction.user.id)
@@ -67,7 +69,7 @@ class DNModal(discord.ui.Modal, title="Dienstnummer beantragen / eintragen"):
         }
         self.cog.speichere_daten()
 
-        # Live-Liste aktualisieren
+        # Live-Liste im Kanal aktualisieren
         await self.cog.update_live_embed(interaction.guild)
 
         await interaction.followup.send(
@@ -75,9 +77,12 @@ class DNModal(discord.ui.Modal, title="Dienstnummer beantragen / eintragen"):
             ephemeral=True
         )
 
+# ==========================================
+# BUTTON VIEW FÜR ANTRAGS-PANEL
+# ==========================================
 class DNView(discord.ui.View):
     def __init__(self, cog):
-        super().__init__(timeout=None) # Persistent View
+        super().__init__(timeout=None) # Dauerhafte View
         self.cog = cog
 
     @discord.ui.button(label="Dienstnummer eintragen", style=discord.ButtonStyle.primary, custom_id="dn_eintragen_btn", emoji="📝")
@@ -112,7 +117,6 @@ class Dienstnummern(commands.Cog):
             print(f"Fehler beim Speichern von {DATA_FILE}: {e}")
 
     async def cog_load(self):
-        # View beim Bot-Start registrieren, damit der Button dauerhaft funktioniert
         self.bot.add_view(DNView(self))
 
     async def update_live_embed(self, guild: discord.Guild):
@@ -160,23 +164,30 @@ class Dienstnummern(commands.Cog):
         await msg.edit(embed=embed)
 
     # ==========================================
-    # BEFEHL: SETUP (BUTTON PANEL & LIVE LISTE)
+    # 1. BEFEHL: /dn-setup (NUR DAS ANTRAGS-PANEL)
     # ==========================================
-    @app_commands.command(name="dn-setup", description="Erstellt das Antrags-Panel und die Live-Dienstnummernliste im Kanal.")
+    @app_commands.command(name="dn-setup", description="Erstellt das Antrags-Panel mit Button im Kanal.")
     @has_allowed_role()
     async def dn_setup(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
-        channel = interaction.channel
 
-        # 1. Panel-Embed mit Button senden
         panel_embed = discord.Embed(
             title="🚔 PPD | DIENSTNUMMERN BEANTRAGEN",
-            description="Klicke auf den Button unten, um deine Dienstnummer in das System einzutragen oder zu aktualisieren.",
+            description="Klicke auf den Button unten, um deine Dienstnummer einzutragen oder zu bearbeiten.",
             color=discord.Color.blue()
         )
-        await channel.send(embed=panel_embed, view=DNView(self))
+        await interaction.channel.send(embed=panel_embed, view=DNView(self))
+        await interaction.followup.send("✅ Antrags-Panel wurde erstellt!", ephemeral=True)
 
-        # 2. Live-Listen-Embed senden und IDs speichern
+    # ==========================================
+    # 2. BEFEHL: /dn-liste (NUR DIE LIVE-LISTE)
+    # ==========================================
+    @app_commands.command(name="dn-liste", description="Erstellt die permanente Live-Dienstnummernliste im Kanal.")
+    @has_allowed_role()
+    async def dn_liste(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        channel = interaction.channel
+
         list_embed = discord.Embed(
             title="📋 PPD | OFFIZIELLE DIENSTNUMMERNLISTE", 
             description="*Wird initialisiert...*", 
@@ -191,12 +202,12 @@ class Dienstnummern(commands.Cog):
         try:
             await self.update_live_embed(interaction.guild)
         except Exception as e:
-            print(f"Fehler beim Initialisieren des Live-Embeds: {e}")
+            print(f"Fehler beim Initialisieren der Liste: {e}")
 
-        await interaction.followup.send("✅ Dienstnummern-Setup erfolgreich eingerichtet!", ephemeral=True)
+        await interaction.followup.send("✅ Live-Dienstnummernliste wurde verankert!", ephemeral=True)
 
     # ==========================================
-    # BEFEHL: ADMIN MANAGEMENT
+    # 3. BEFEHL: /dn-admin (ADMIN-VERWALTUNG)
     # ==========================================
     @app_commands.command(name="dn-admin", description="Verwalte Dienstnummern von Mitgliedern (Hinzufügen / Entfernen).")
     @has_allowed_role()
@@ -224,7 +235,7 @@ class Dienstnummern(commands.Cog):
 
         if aktion == "add":
             if not ebene or nummer is None or not name:
-                await interaction.followup.send("❌ Zum Hinzufügen musst du **Ebene**, **Nummer** und **Name** angeben!", ephemeral=True)
+                await interaction.followup.send("❌ Zum Hinzufügen musst du **Ebene** (Laufbahn), **Nummer** und **Name** angeben!", ephemeral=True)
                 return
 
             self.daten["nummern"][u_id] = {
