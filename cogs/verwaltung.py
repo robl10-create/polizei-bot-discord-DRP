@@ -3,17 +3,30 @@ from discord.ext import commands
 from discord import app_commands
 from .listen import ListenCog
 
-ALLOWED_ROLE_ID = 1497905102156206162
+# Füge hier alle Rollen-IDs ein, die die Befehle nutzen dürfen:
+ALLOWED_ROLE_IDS = [
+    1497905102156206162,
+    1527040334981369887,
+]
 
 def has_allowed_role():
     async def predicate(interaction: discord.Interaction) -> bool:
-        if interaction.user.guild_permissions.manage_roles or any(role.id == ALLOWED_ROLE_ID for role in interaction.user.roles):
+        # 1. Prüfe, ob der Nutzer Server-Admin ist oder Rollen verwalten darf
+        if interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_roles:
             return True
+
+        # 2. Prüfe, ob der Nutzer EINE der erlaubten Rollen besitzt
+        user_role_ids = [role.id for role in interaction.user.roles]
+        if any(role_id in user_role_ids for role_id in ALLOWED_ROLE_IDS):
+            return True
+
+        # Wenn keine Berechtigung vorliegt:
         await interaction.response.send_message(
             "🚨 **Zugriff verweigert!** Du benötigst die Rolle **SG23 | Dienstaufsicht** oder die Berechtigung 'Rollen verwalten', um diesen Befehl zu nutzen.", 
             ephemeral=True
         )
         return False
+        
     return app_commands.check(predicate)
 
 class RankSelect(discord.ui.Select):
