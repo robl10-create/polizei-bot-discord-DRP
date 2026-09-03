@@ -3,7 +3,6 @@ import asyncio
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
-from keep_alive import keep_alive  # Importiert deinen Mini-Webserver
 
 # Laden der .env Datei
 load_dotenv()
@@ -25,6 +24,7 @@ class RoleplayBot(commands.Bot):
             'cogs.help',
             'cogs.sanktionen',
             'cogs.verwaltung',
+            'cogs.ausbildung',
             'cogs.abteilungen',
             'cogs.dienstnummern'
         ]
@@ -36,8 +36,6 @@ class RoleplayBot(commands.Bot):
             except Exception as e:
                 print(str(f"❌ FEHLER beim Laden von {cog}: {e}"))
                 
-        # Hiernach folgt dein normaler Sync-Befehl (falls vorhanden)
-        
         # Slash Commands mit Discord synchronisieren
         print("Synchronisiere Commands...")
         await self.tree.sync()
@@ -50,7 +48,4 @@ class RoleplayBot(commands.Bot):
 bot = RoleplayBot()
 
 if __name__ == "__main__":
-    # 1. Startet den Webserver für UptimeRobot im Hintergrund
-    keep_alive()
-
     bot.run(TOKEN)
