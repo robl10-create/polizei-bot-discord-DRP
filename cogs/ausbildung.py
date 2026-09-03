@@ -6,7 +6,7 @@ from .listen import ListenCog
 # Füge hier alle Rollen-IDs ein, die Ausbildungen eintragen dürfen (z. B. SG22 / Ausbilder)
 ALLOWED_ROLE_IDS = [
     1497905102156206162,  # Haupt-Admin / Dienstaufsicht
-    # 1234567890123456789 # <--- Hier die Rollen-ID der SG22 / Ausbildungsleitung eintragen
+    1497905103397457991 # <--- Hier die Rollen-ID der SG22 / Ausbildungsleitung eintragen
 ]
 
 def has_allowed_role():
